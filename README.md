@@ -16,7 +16,7 @@ e da Portaria nº 293/2020 - GP/FUERN.
 
 ```bash
 npm install
-cp .env.example .env   # ajuste DATABASE_URL e AUTH_SECRET
+cp .env.example .env   # ajuste DATABASE_URL, DIRECT_URL e AUTH_SECRET
 npx prisma migrate deploy
 npm run db:seed
 npm run dev
@@ -28,6 +28,41 @@ O seed cria um usuário administrador de acesso inicial:
 - **Senha:** `TrocarEssaSenha123!` (troque assim que possível — não há tela
   de troca de senha própria ainda; atualize via `usuario.senhaHash` ou crie
   um novo usuário admin e remova este)
+
+## Deploy com Neon + Vercel (gratuito)
+
+Este projeto está preparado para rodar com [Neon](https://neon.tech)
+(Postgres serverless, plano gratuito permanente) como banco e Vercel como
+hospedagem — ambos com plano gratuito, e substituíveis depois por um
+Postgres próprio da UERN sem mudar nenhuma linha de código (é Postgres
+padrão).
+
+1. Crie um projeto no Neon.
+2. No painel do projeto, clique em **Connect** e copie as duas connection
+   strings:
+   - **Pooled** (host termina em `-pooler`) → variável `DATABASE_URL`
+   - **Direct** (sem `-pooler`) → variável `DIRECT_URL`
+3. Importe o repositório na Vercel e configure `DATABASE_URL`, `DIRECT_URL`
+   e `AUTH_SECRET` nas variáveis de ambiente do projeto.
+4. Rode as migrations e o seed **uma vez**, a partir de um ambiente que
+   consiga alcançar o Neon (sua máquina local, por exemplo — aponte seu
+   `.env` local para as mesmas connection strings do Neon temporariamente):
+   ```bash
+   npx prisma migrate deploy
+   npm run db:seed
+   ```
+5. Faça o deploy. O comando de build (`npm run build`) já roda
+   `prisma migrate deploy` automaticamente antes de compilar o Next.js, então
+   migrations futuras aplicam sozinhas a cada deploy — só o seed inicial
+   precisa ser manual, para não recriar dados de teste toda vez.
+
+Os arquivos anexados aos pedidos (comprovantes e relatórios de viagem) hoje
+são salvos em `storage/uploads/` no disco local do servidor. Isso funciona
+em hospedagem com disco persistente, mas **não sobrevive a deploys em
+infraestrutura serverless/efêmera** (a própria Vercel, por exemplo, apaga o
+disco a cada novo deploy). Antes de usar isso em produção de verdade, essa
+parte precisa migrar para um armazenamento externo (S3-compatível, por
+exemplo) — ainda não implementado.
 
 ## Testes
 
