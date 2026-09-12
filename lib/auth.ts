@@ -78,12 +78,20 @@ export async function exigirAdmin(): Promise<SessionPayload> {
   return sessao;
 }
 
+// Hash de um valor que nunca vai bater, só para gastar o mesmo tempo de um
+// bcrypt.compare real quando o email não existe — evita que o tempo de
+// resposta do login denuncie quais emails estão cadastrados.
+const HASH_FANTASMA = "$2b$12$no0hl/UbgPkre0D4vkOQV.8uf.GL/owAET4pOTPTV10okJC43r23C";
+
 export async function autenticar(
   email: string,
   senha: string,
 ): Promise<SessionPayload | null> {
   const usuario = await prisma.usuario.findUnique({ where: { email } });
-  if (!usuario) return null;
+  if (!usuario) {
+    await bcrypt.compare(senha, HASH_FANTASMA);
+    return null;
+  }
 
   const senhaOk = await bcrypt.compare(senha, usuario.senhaHash);
   if (!senhaOk) return null;

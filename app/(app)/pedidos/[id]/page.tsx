@@ -125,7 +125,15 @@ export default async function PedidoDetalhePage({
           </p>
           {relatorioViagem && (
             <p className="mt-1 text-xs text-slate-500">
-              Relatório enviado em {formatarDataHora(pedido.relatorioEnviadoEm!)}.
+              Relatório enviado em {formatarDataHora(pedido.relatorioEnviadoEm!)}.{" "}
+              <a
+                href={`/api/anexos/${relatorioViagem.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-slate-700"
+              >
+                Abrir {relatorioViagem.nomeArquivo}
+              </a>
             </p>
           )}
         </section>
@@ -136,7 +144,16 @@ export default async function PedidoDetalhePage({
           <h2 className="mb-1 text-sm font-semibold text-slate-900">
             Comprovante de autorização anexado
           </h2>
-          <p className="text-sm text-slate-600">{comprovanteLimite.nomeArquivo}</p>
+          <p className="text-sm text-slate-600">
+            <a
+              href={`/api/anexos/${comprovanteLimite.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-slate-700"
+            >
+              {comprovanteLimite.nomeArquivo}
+            </a>
+          </p>
         </section>
       )}
 

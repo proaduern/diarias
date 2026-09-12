@@ -1,29 +1,11 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import crypto from "node:crypto";
+const TAMANHO_MAXIMO_BYTES = 8 * 1024 * 1024; // 8 MB
 
-const UPLOADS_ROOT = path.join(process.cwd(), "storage", "uploads");
-
-export async function salvarArquivoEnviado(
-  pedidoId: string,
+export async function lerArquivoEnviado(
   arquivo: File,
-): Promise<{ nomeArquivo: string; caminho: string }> {
-  const dir = path.join(UPLOADS_ROOT, pedidoId);
-  await mkdir(dir, { recursive: true });
-
-  const extensao = path.extname(arquivo.name) || ".pdf";
-  const nomeSeguro = `${Date.now()}-${crypto.randomUUID()}${extensao}`;
-  const caminhoAbsoluto = path.join(dir, nomeSeguro);
-
-  const buffer = Buffer.from(await arquivo.arrayBuffer());
-  await writeFile(caminhoAbsoluto, buffer);
-
-  return {
-    nomeArquivo: arquivo.name,
-    caminho: path.join(pedidoId, nomeSeguro),
-  };
-}
-
-export function caminhoAbsolutoAnexo(caminhoRelativo: string): string {
-  return path.join(UPLOADS_ROOT, caminhoRelativo);
+): Promise<{ nomeArquivo: string; conteudo: Uint8Array }> {
+  if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
+    throw new Error("O arquivo excede o limite de 8 MB.");
+  }
+  const conteudo = new Uint8Array(await arquivo.arrayBuffer());
+  return { nomeArquivo: arquivo.name, conteudo };
 }
