@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Perfis e organização
+// ---------------------------------------------------------------------------
+
+enum PerfilUsuario {
+  ADMIN
+  DEMANDANTE
+}
+
+model Unidade {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios      Usuario[]
+  beneficiarios Beneficiario[]
+  pedidos       PedidoDiaria[]
+  orcamentos    OrcamentoUnidade[]
+}
+
+model Usuario {
+  id           String        @id @default(cuid())
+  nome         String
+  email        String        @unique
+  cpf          String        @unique
+  senhaHash    String
+  perfil       PerfilUsuario @default(DEMANDANTE)
+  unidadeId    String?
+  unidade      Unidade?      @relation(fields: [unidadeId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  pedidosCriados PedidoDiaria[] @relation("PedidoCriadoPor")
+  aprovacoes     Aprovacao[]    @relation("AprovacoesFeitas")
+}
+
+// ---------------------------------------------------------------------------
+// Beneficiários e parametrização (categorias, destinos, valores)
+// ---------------------------------------------------------------------------
+
+model CategoriaBeneficiario {
+  id               String   @id @default(cuid())
+  nome             String   @unique
+  descricao        String?
+  limiteAnualDias  Int      @default(60)
+  ordem            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  beneficiarios Beneficiario[]
+  valores       ValorDiaria[]
+}
+
+model TipoDestino {
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  descricao String?
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  valores ValorDiaria[]
+  pedidos PedidoDiaria[]
+}
+
+model ValorDiaria {
+  id            String   @id @default(cuid())
+  categoriaId   String
+  categoria     CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
+  tipoDestinoId String
+  tipoDestino   TipoDestino @relation(fields: [tipoDestinoId], references: [id])
+  moeda         String   @default("BRL")
+  valorCentavos Int
+  vigenteDesde  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([categoriaId, tipoDestinoId])
+}
+
+model Beneficiario {
+  id                String   @id @default(cuid())
+  nome              String
+  nomeNormalizado   String
+  cpf               String   @unique
+  banco             String
+  agencia           String
+  contaCorrente     String
+  categoriaId       String
+  categoria         CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
+  unidadeVinculoId  String?
+  unidadeVinculo    Unidade? @relation(fields: [unidadeVinculoId], references: [id])
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  pedidos PedidoDiaria[]
+}
+
+// ---------------------------------------------------------------------------
+// Pedido de diária
+// ---------------------------------------------------------------------------
+
+// Status de aprovação do pedido. A situação da prestação de contas
+// pós-viagem (aguardando relatório / atrasado / devolução pendente /
+// concluído) é derivada dinamicamente a partir de chegadaSede e
+// relatorioEnviadoEm (ver lib/prestacao-contas.ts) e não é armazenada aqui.
+enum StatusPedido {
+  AGUARDANDO_JUSTIFICATIVA_PRAZO
+  AGUARDANDO_DELIBERACAO_LIMITE
+  AGUARDANDO_DEFERIMENTO
+  DEFERIDO
+  INDEFERIDO
+}
+
+enum TipoAnexo {
+  AUTORIZACAO_LIMITE
+  RELATORIO_VIAGEM
+}
+
+model PedidoDiaria {
+  id            String   @id @default(cuid())
+
+  beneficiarioId String
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id])
+
+  unidadeSolicitanteId String
+  unidadeSolicitante   Unidade @relation(fields: [unidadeSolicitanteId], references: [id])
+
+  tipoDestinoId String
+  tipoDestino   TipoDestino @relation(fields: [tipoDestinoId], references: [id])
+
+  municipioDestino String
+  finalidade       String
+  kmDeclarado      Int
+
+  saidaSede       DateTime
+  chegadaDestino  DateTime
+  saidaDestino    DateTime
+  chegadaSede     DateTime
+
+  // Resultado do motor de cálculo (snapshot no momento do deferimento)
+  noites               Int?
+  ultimaNoiteQualifica Boolean?
+  diarias              Decimal? @db.Decimal(6, 2)
+  valorUnitarioCentavos Int?
+  valorTotalCentavos    Int?
+
+  status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
+
+  justificativaPrazoCurto String?
+  justificativaPrazoAceitaPor String?
+
+  relatorioEnviadoEm       DateTime?
+  pendenciaRegularizadaEm  DateTime?
+  pendenciaRegularizadaPor String?
+
+  criadoPorId String
+  criadoPor   Usuario @relation("PedidoCriadoPor", fields: [criadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anexos      Anexo[]
+  aprovacoes  Aprovacao[]
+
+  @@index([beneficiarioId])
+  @@index([unidadeSolicitanteId])
+  @@index([status])
+}
+
+model Anexo {
+  id           String    @id @default(cuid())
+  pedidoId     String
+  pedido       PedidoDiaria @relation(fields: [pedidoId], references: [id])
+  tipo         TipoAnexo
+  nomeArquivo  String
+  caminho      String
+  enviadoEm    DateTime  @default(now())
+}
+
+model Aprovacao {
+  id          String   @id @default(cuid())
+  pedidoId    String
+  pedido      PedidoDiaria @relation(fields: [pedidoId], references: [id])
+  aprovadorId String
+  aprovador   Usuario  @relation("AprovacoesFeitas", fields: [aprovadorId], references: [id])
+  decisao     String
+  motivo      String?
+  createdAt   DateTime @default(now())
+}
+
+model OrcamentoUnidade {
+  id                String   @id @default(cuid())
+  unidadeId         String
+  unidade           Unidade  @relation(fields: [unidadeId], references: [id])
+  ano               Int
+  valorTotalCentavos Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([unidadeId, ano])
+}
+
+model ConfiguracaoSistema {
+  id                       Int     @id @default(1)
+  limiteMensalDiarias      Int     @default(10)
+  prazoMinimoDiasAntecedencia Int  @default(5)
+  prazoRelatorioDiasUteis  Int     @default(5)
+  prazoDevolucaoDiasCorridos Int   @default(30)
+  kmMinimoSemPernoite      Int     @default(40)
+  duracaoMinimaHoras       Int     @default(6)
+}
