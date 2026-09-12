@@ -164,11 +164,11 @@ async function main() {
 
   const senhaAdminHash = await bcrypt.hash("TrocarEssaSenha123!", 12);
   await prisma.usuario.upsert({
-    where: { email: "admin@fuern.rn.gov.br" },
+    where: { email: "adj.proad@uern.br" },
     update: {},
     create: {
       nome: "Administrador do Sistema",
-      email: "admin@fuern.rn.gov.br",
+      email: "adj.proad@uern.br",
       cpf: "11122233396",
       senhaHash: senhaAdminHash,
       perfil: "ADMIN",
