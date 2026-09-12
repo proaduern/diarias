@@ -13,6 +13,9 @@ export default async function UsuariosPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold text-slate-900">Usuários</h1>
+      <p className="text-sm text-slate-500">
+        O email de acesso ao sistema precisa ser do domínio @uern.br.
+      </p>
 
       <FormularioSimples
         action={criarUsuarioAction}

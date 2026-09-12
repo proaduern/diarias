@@ -24,7 +24,7 @@ npm run dev
 
 O seed cria um usuário administrador de acesso inicial:
 
-- **Email:** `admin@fuern.rn.gov.br`
+- **Email:** `adj.proad@uern.br`
 - **Senha:** `TrocarEssaSenha123!` (troque assim que possível — não há tela
   de troca de senha própria ainda; atualize via `usuario.senhaHash` ou crie
   um novo usuário admin e remova este)

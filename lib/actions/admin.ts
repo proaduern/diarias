@@ -48,6 +48,9 @@ export async function criarUsuarioAction(formData: FormData) {
   if (!nome || !email || !cpf || !senha) {
     throw new Error("Preencha todos os campos obrigatórios.");
   }
+  if (!email.toLowerCase().endsWith("@uern.br")) {
+    throw new Error("O email de acesso ao sistema precisa ser do domínio @uern.br.");
+  }
   if (!cpfValido(cpf)) {
     throw new Error("CPF inválido.");
   }
