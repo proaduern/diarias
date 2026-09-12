@@ -8,7 +8,7 @@ import { calcularDiarias } from "@/lib/diaria-calculo";
 import { avaliarPrazo } from "@/lib/prazo";
 import { avaliarLimites } from "@/lib/limites";
 import { avaliarPrestacaoContas, temPendenciaBloqueante } from "@/lib/prestacao-contas";
-import { salvarArquivoEnviado } from "@/lib/storage";
+import { lerArquivoEnviado } from "@/lib/storage";
 import type { StatusPedido } from "@prisma/client";
 
 export interface CriarPedidoState {
@@ -315,14 +315,16 @@ export async function anexarComprovanteLimiteAction(
     throw new Error("O comprovante deve ser um arquivo PDF.");
   }
 
-  const salvo = await salvarArquivoEnviado(pedidoId, arquivo);
+  const arquivoLido = await lerArquivoEnviado(arquivo);
 
   await prisma.anexo.create({
     data: {
       pedidoId,
       tipo: "AUTORIZACAO_LIMITE",
-      nomeArquivo: salvo.nomeArquivo,
-      caminho: salvo.caminho,
+      nomeArquivo: arquivoLido.nomeArquivo,
+      // ArrayBuffer vs. ArrayBufferLike: mesma divergência de versão de tipos
+      // do @types/node explicada em lib/storage.ts; em runtime é um Uint8Array normal.
+      conteudo: arquivoLido.conteudo as never,
     },
   });
 
@@ -418,15 +420,15 @@ export async function enviarRelatorioViagemAction(
     throw new Error("O relatório deve ser um arquivo PDF.");
   }
 
-  const salvo = await salvarArquivoEnviado(pedidoId, arquivo);
+  const arquivoLido = await lerArquivoEnviado(arquivo);
 
   await prisma.$transaction([
     prisma.anexo.create({
       data: {
         pedidoId,
         tipo: "RELATORIO_VIAGEM",
-        nomeArquivo: salvo.nomeArquivo,
-        caminho: salvo.caminho,
+        nomeArquivo: arquivoLido.nomeArquivo,
+        conteudo: arquivoLido.conteudo as never,
       },
     }),
     prisma.pedidoDiaria.update({

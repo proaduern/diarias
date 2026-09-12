@@ -56,13 +56,13 @@ padrão).
    migrations futuras aplicam sozinhas a cada deploy — só o seed inicial
    precisa ser manual, para não recriar dados de teste toda vez.
 
-Os arquivos anexados aos pedidos (comprovantes e relatórios de viagem) hoje
-são salvos em `storage/uploads/` no disco local do servidor. Isso funciona
-em hospedagem com disco persistente, mas **não sobrevive a deploys em
-infraestrutura serverless/efêmera** (a própria Vercel, por exemplo, apaga o
-disco a cada novo deploy). Antes de usar isso em produção de verdade, essa
-parte precisa migrar para um armazenamento externo (S3-compatível, por
-exemplo) — ainda não implementado.
+Os arquivos anexados aos pedidos (comprovantes e relatórios de viagem) são
+salvos como `bytea` no próprio Postgres (coluna `Anexo.conteudo`), não em
+disco — o disco de funções serverless da Vercel é somente leitura e não
+sobrevive entre deploys, então armazenamento em arquivo local não funcionaria
+em produção. Baixados via `GET /api/anexos/[id]`, que confere sessão e
+propriedade (unidade só acessa anexo de pedido próprio) antes de servir o
+PDF.
 
 ## Testes
 
@@ -72,10 +72,22 @@ npm run lint
 npm run build
 ```
 
-Os testes cobrem exclusivamente as regras de negócio puras (cálculo de
-diária, limites, prazo, prestação de contas, dedup de CPF) — são a parte
-mais crítica do sistema, já que envolvem dinheiro público e uma leitura
-literal do decreto.
+Os testes automatizados (`npm test`) cobrem exclusivamente as regras de
+negócio puras (cálculo de diária, limites, prazo, prestação de contas, dedup
+de CPF) — são a parte mais crítica do sistema, já que envolvem dinheiro
+público e uma leitura literal do decreto.
+
+Há também um smoke test end-to-end (Playwright) do fluxo de anexos, que
+precisa do servidor rodando em `:3000`:
+
+```bash
+npm run build && npm run start &
+node preparar-teste-anexo.mjs   # cadastra pedido/unidades/usuários de teste
+node smoke-anexo.mjs <pedidoId> # upload, download, e checagem de autorização
+```
+
+Confere upload de comprovante, download pelo dono, bloqueio de acesso por
+unidade diferente (403) e sem sessão (401), e acesso irrestrito do admin.
 
 ## Regras de negócio implementadas
 

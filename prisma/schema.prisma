@@ -187,7 +187,8 @@ model Anexo {
   pedido       PedidoDiaria @relation(fields: [pedidoId], references: [id])
   tipo         TipoAnexo
   nomeArquivo  String
-  caminho      String
+  caminho      String? // legado (armazenamento em disco); não usado mais, ver `conteudo`
+  conteudo     Bytes?
   enviadoEm    DateTime  @default(now())
 }
 
