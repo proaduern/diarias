@@ -10,6 +10,7 @@ import {
   indeferirPedidoAction,
   enviarRelatorioViagemAction,
   regularizarPendenciaAction,
+  type TipoPedido,
 } from "@/lib/actions/pedidos";
 
 interface PedidoAcoes {
@@ -20,11 +21,13 @@ interface PedidoAcoes {
 }
 
 export default function AcoesPedido({
+  tipo,
   pedido,
   situacaoPrestacao,
   ehAdmin,
   temComprovanteLimite,
 }: {
+  tipo: TipoPedido;
   pedido: PedidoAcoes;
   situacaoPrestacao: string | null;
   ehAdmin: boolean;
@@ -54,7 +57,7 @@ export default function AcoesPedido({
       <button
         key="aprovar-justificativa"
         disabled={isPending}
-        onClick={() => executar(() => aprovarJustificativaPrazoAction(pedido.id))}
+        onClick={() => executar(() => aprovarJustificativaPrazoAction(tipo, pedido.id))}
         className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         Aceitar justificativa de prazo
@@ -70,7 +73,7 @@ export default function AcoesPedido({
           e.preventDefault();
           const formData = new FormData();
           formData.set("justificativaGestorAtividade", justificativaAtividadeRef.current?.value ?? "");
-          executar(() => aprovarJustificativaAtividadeAction(pedido.id, formData));
+          executar(() => aprovarJustificativaAtividadeAction(tipo, pedido.id, formData));
         }}
         className="w-full space-y-2"
       >
@@ -92,7 +95,7 @@ export default function AcoesPedido({
     );
   }
 
-  if (pedido.status === "AGUARDANDO_DELIBERACAO_LIMITE") {
+  if (tipo === "DIARIA" && pedido.status === "AGUARDANDO_DELIBERACAO_LIMITE") {
     acoes.push(
       <form
         key="anexar-comprovante"
@@ -139,7 +142,7 @@ export default function AcoesPedido({
       <button
         key="deferir"
         disabled={isPending}
-        onClick={() => executar(() => deferirPedidoAction(pedido.id))}
+        onClick={() => executar(() => deferirPedidoAction(tipo, pedido.id))}
         className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         Deferir
@@ -181,7 +184,7 @@ export default function AcoesPedido({
           e.preventDefault();
           const form = e.currentTarget;
           const formData = new FormData(form);
-          executar(() => enviarRelatorioViagemAction(pedido.id, formData));
+          executar(() => enviarRelatorioViagemAction(tipo, pedido.id, formData));
         }}
         className="flex items-center gap-2"
       >
@@ -207,7 +210,7 @@ export default function AcoesPedido({
       <button
         key="regularizar"
         disabled={isPending}
-        onClick={() => executar(() => regularizarPendenciaAction(pedido.id))}
+        onClick={() => executar(() => regularizarPendenciaAction(tipo, pedido.id))}
         className="rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-60"
       >
         Marcar pendência como regularizada
@@ -228,7 +231,7 @@ export default function AcoesPedido({
             e.preventDefault();
             const formData = new FormData();
             formData.set("motivo", motivoRef.current?.value ?? "");
-            executar(() => indeferirPedidoAction(pedido.id, formData));
+            executar(() => indeferirPedidoAction(tipo, pedido.id, formData));
           }}
           className="space-y-2"
         >

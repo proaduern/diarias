@@ -8,6 +8,7 @@ interface CategoriaParaEdicao {
   nome: string;
   descricao: string | null;
   limiteAnualDias: number;
+  elegivelHospedagem: boolean;
   ordem: number;
 }
 
@@ -82,6 +83,14 @@ export default function EditarCategoriaForm({ categoria }: { categoria: Categori
           />
         </div>
       </div>
+      <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+        <input
+          type="checkbox"
+          name="elegivelHospedagem"
+          defaultChecked={categoria.elegivelHospedagem}
+        />
+        Elegível para hospedagem
+      </label>
 
       {erro && <p className="text-xs text-red-600">{erro}</p>}
 

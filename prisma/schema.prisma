@@ -26,29 +26,29 @@ model Unidade {
 
   usuarios      Usuario[]
   beneficiarios Beneficiario[]
-  pedidos       PedidoDiaria[]
+  viagens       Viagem[]
   orcamentos    OrcamentoUnidade[]
 }
 
 model Usuario {
-  id           String        @id @default(cuid())
-  nome         String
-  email        String        @unique
-  cpf          String        @unique
-  senhaHash    String
-  perfil       PerfilUsuario @default(DEMANDANTE)
-  unidadeId    String?
-  unidade      Unidade?      @relation(fields: [unidadeId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  nome      String
+  email     String        @unique
+  cpf       String        @unique
+  senhaHash String
+  perfil    PerfilUsuario @default(DEMANDANTE)
+  unidadeId String?
+  unidade   Unidade?      @relation(fields: [unidadeId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   // Permissões que o admin pode delegar a um demandante, sempre restritas à
   // própria unidade de vínculo dele (nunca a outras unidades).
   podeImportarUsuarios    Boolean @default(false)
   podeEditarBeneficiarios Boolean @default(false)
 
-  pedidosCriados PedidoDiaria[] @relation("PedidoCriadoPor")
-  aprovacoes     Aprovacao[]    @relation("AprovacoesFeitas")
+  viagensCriadas Viagem[]    @relation("ViagemCriadaPor")
+  aprovacoes     Aprovacao[] @relation("AprovacoesFeitas")
 }
 
 // ---------------------------------------------------------------------------
@@ -56,13 +56,18 @@ model Usuario {
 // ---------------------------------------------------------------------------
 
 model CategoriaBeneficiario {
-  id               String   @id @default(cuid())
-  nome             String   @unique
-  descricao        String?
-  limiteAnualDias  Int      @default(60)
-  ordem            Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  nome               String   @unique
+  descricao          String?
+  limiteAnualDias    Int      @default(60)
+  // Elegibilidade para hospedagem (Fase 3), editável pelo admin — hoje
+  // restrita por normativo a categorias de colaborador externo, mas o
+  // mapeamento fica em dado, não no código, pois pode ser ampliado por
+  // novo normativo.
+  elegivelHospedagem Boolean  @default(false)
+  ordem              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   beneficiarios Beneficiario[]
   valores       ValorDiaria[]
@@ -81,37 +86,98 @@ model TipoDestino {
 }
 
 model ValorDiaria {
-  id            String   @id @default(cuid())
+  id            String                @id @default(cuid())
   categoriaId   String
   categoria     CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
   tipoDestinoId String
-  tipoDestino   TipoDestino @relation(fields: [tipoDestinoId], references: [id])
-  moeda         String   @default("BRL")
+  tipoDestino   TipoDestino           @relation(fields: [tipoDestinoId], references: [id])
+  moeda         String                @default("BRL")
   valorCentavos Int
-  vigenteDesde  DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  vigenteDesde  DateTime              @default(now())
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   @@unique([categoriaId, tipoDestinoId])
 }
 
 model Beneficiario {
-  id                String   @id @default(cuid())
-  nome              String
-  nomeNormalizado   String
-  cpf               String   @unique
-  banco             String
-  agencia           String
-  contaCorrente     String
-  categoriaId       String
-  categoria         CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
-  unidadeVinculoId  String?
-  unidadeVinculo    Unidade? @relation(fields: [unidadeVinculoId], references: [id])
-  ativo             Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String                @id @default(cuid())
+  nome             String
+  nomeNormalizado  String
+  cpf              String                @unique
+  banco            String
+  agencia          String
+  contaCorrente    String
+  categoriaId      String
+  categoria        CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
+  unidadeVinculoId String?
+  unidadeVinculo   Unidade?              @relation(fields: [unidadeVinculoId], references: [id])
+  ativo            Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
-  pedidos PedidoDiaria[]
+  viagens Viagem[]
+}
+
+// ---------------------------------------------------------------------------
+// Viagem (Fase 3 da expansão multi-benefício)
+//
+// Entidade que reúne os dados compartilhados por todos os tipos de pedido
+// (diária, hospedagem e, futuramente, passagem aérea/terrestre): quem
+// viaja, sede/destino/aeroporto e a programação de atividades. O
+// demandante preenche esses dados uma única vez e, a partir deles, marca
+// um ou mais tipos de pedido — cada um vira um registro próprio (ex.:
+// PedidoDiaria, PedidoHospedagem), com seu próprio cálculo/status/aprovação,
+// mas todos amarrados à mesma Viagem e validados contra a mesma
+// programação de atividades (lib/atividades.ts).
+// ---------------------------------------------------------------------------
+
+model Viagem {
+  id String @id @default(cuid())
+
+  beneficiarioId String
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id])
+
+  unidadeSolicitanteId String
+  unidadeSolicitante   Unidade @relation(fields: [unidadeSolicitanteId], references: [id])
+
+  finalidade       String
+  municipioDestino String
+  kmDeclarado      Int
+
+  sedeCidade    String
+  sedeEstado    String
+  destinoEstado String
+
+  // Trecho aéreo opcional: quando o beneficiário for buscado no aeroporto, a
+  // viagem tem 3 trechos — terrestre sede->aeroporto, aéreo
+  // aeroporto->aeroporto, terrestre aeroporto->destino — cada um com sua
+  // própria fórmula de tempo (ver lib/tempo-viagem.ts). kmDeclarado acima
+  // continua sendo a distância terrestre direta sede-destino, usada no
+  // Art. 17, I (pernoite) independentemente de haver trecho aéreo.
+  vaiBuscarAeroporto         Boolean @default(false)
+  kmSedeAeroporto            Int?
+  kmVoo                      Int?
+  kmAeroportoDestino         Int?
+  tempoViagemEstimadoMinutos Int?
+
+  saidaSede      DateTime
+  chegadaDestino DateTime
+  saidaDestino   DateTime
+  chegadaSede    DateTime
+
+  criadoPorId String
+  criadoPor   Usuario @relation("ViagemCriadaPor", fields: [criadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  atividades        Atividade[]
+  pedidosDiaria     PedidoDiaria[]
+  pedidosHospedagem PedidoHospedagem[]
+
+  @@index([beneficiarioId])
+  @@index([unidadeSolicitanteId])
 }
 
 // ---------------------------------------------------------------------------
@@ -147,21 +213,21 @@ model EnquadramentoAtividade {
 }
 
 model Atividade {
-  id              String   @id @default(cuid())
-  pedidoId        String
-  pedido          PedidoDiaria @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  id              String                 @id @default(cuid())
+  viagemId        String
+  viagem          Viagem                 @relation(fields: [viagemId], references: [id], onDelete: Cascade)
   enquadramentoId String
   enquadramento   EnquadramentoAtividade @relation(fields: [enquadramentoId], references: [id])
   descricao       String
   detalhamento    String?
   dataHoraInicio  DateTime
   dataHoraFim     DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   anexos Anexo[]
 
-  @@index([pedidoId])
+  @@index([viagemId])
 }
 
 // ---------------------------------------------------------------------------
@@ -189,55 +255,24 @@ enum TipoAnexo {
 }
 
 model PedidoDiaria {
-  id            String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  beneficiarioId String
-  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id])
-
-  unidadeSolicitanteId String
-  unidadeSolicitante   Unidade @relation(fields: [unidadeSolicitanteId], references: [id])
+  viagemId String
+  viagem   Viagem @relation(fields: [viagemId], references: [id])
 
   tipoDestinoId String
   tipoDestino   TipoDestino @relation(fields: [tipoDestinoId], references: [id])
 
-  municipioDestino String
-  finalidade       String
-  kmDeclarado      Int
-
-  // Sede/destino (Fase 2): cidade do destino já é `municipioDestino` acima;
-  // os demais campos de lugar não existiam antes e são necessários para o
-  // futuro cálculo de passagem aérea/terrestre.
-  sedeCidade    String @default("")
-  sedeEstado    String @default("")
-  destinoEstado String @default("")
-
-  // Trecho aéreo opcional (Fase 2): quando o beneficiário for buscado no
-  // aeroporto, a viagem tem 3 trechos — terrestre sede->aeroporto, aéreo
-  // aeroporto->aeroporto, terrestre aeroporto->destino — cada um com sua
-  // própria fórmula de tempo (ver lib/tempo-viagem.ts). kmDeclarado acima
-  // continua sendo a distância terrestre direta sede-destino, usada no
-  // Art. 17, I (pernoite) independentemente de haver trecho aéreo.
-  vaiBuscarAeroporto    Boolean @default(false)
-  kmSedeAeroporto       Int?
-  kmVoo                 Int?
-  kmAeroportoDestino    Int?
-  tempoViagemEstimadoMinutos Int?
-
-  saidaSede       DateTime
-  chegadaDestino  DateTime
-  saidaDestino    DateTime
-  chegadaSede     DateTime
-
   // Resultado do motor de cálculo (snapshot no momento do deferimento)
-  noites               Int?
-  ultimaNoiteQualifica Boolean?
-  diarias              Decimal? @db.Decimal(6, 2)
+  noites                Int?
+  ultimaNoiteQualifica  Boolean?
+  diarias               Decimal? @db.Decimal(6, 2)
   valorUnitarioCentavos Int?
   valorTotalCentavos    Int?
 
   status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
 
-  justificativaPrazoCurto String?
+  justificativaPrazoCurto     String?
   justificativaPrazoAceitaPor String?
 
   // Exceção de horário de atividade (Fase 1): a viagem se estende além do
@@ -254,67 +289,102 @@ model PedidoDiaria {
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
 
-  criadoPorId String
-  criadoPor   Usuario @relation("PedidoCriadoPor", fields: [criadoPorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anexos     Anexo[]
+  aprovacoes Aprovacao[]
+
+  @@index([viagemId])
+  @@index([status])
+}
+
+// Pedido de hospedagem — mutuamente exclusivo com PedidoDiaria na mesma
+// Viagem (diária já cobre alimentação+hospedagem). Elegível apenas para
+// beneficiários de categoria com `elegivelHospedagem = true` (ver
+// CategoriaBeneficiario), mapeamento editável pelo admin pois a
+// regulamentação pode mudar. Ainda sem motor de cálculo de valor — não há
+// tabela oficial de valores de hospedagem cadastrada no sistema.
+model PedidoHospedagem {
+  id String @id @default(cuid())
+
+  viagemId String
+  viagem   Viagem @relation(fields: [viagemId], references: [id])
+
+  status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
+
+  justificativaPrazoCurto     String?
+  justificativaPrazoAceitaPor String?
+
+  cienciaPrazoAtividade        Boolean @default(false)
+  justificativaGestorAtividade String?
+  justificativaGestorAceitaPor String?
+
+  relatorioEnviadoEm       DateTime?
+  pendenciaRegularizadaEm  DateTime?
+  pendenciaRegularizadaPor String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  atividades  Atividade[]
-  anexos      Anexo[]
-  aprovacoes  Aprovacao[]
+  anexos     Anexo[]
+  aprovacoes Aprovacao[]
 
-  @@index([beneficiarioId])
-  @@index([unidadeSolicitanteId])
+  @@index([viagemId])
   @@index([status])
 }
 
 model Anexo {
-  id           String    @id @default(cuid())
-  pedidoId     String
-  pedido       PedidoDiaria @relation(fields: [pedidoId], references: [id])
-  // Presente apenas para anexos de atividade (plano de aula, comprovante de
-  // treinamento). pedidoId continua preenchido nesse caso (denormalizado, a
-  // partir de atividade.pedidoId) para reaproveitar a autorização por
-  // unidade já existente em /api/anexos/[id].
-  atividadeId  String?
-  atividade    Atividade? @relation(fields: [atividadeId], references: [id])
-  tipo         TipoAnexo
-  nomeArquivo  String
-  caminho      String? // legado (armazenamento em disco); não usado mais, ver `conteudo`
-  conteudo     Bytes?
-  enviadoEm    DateTime  @default(now())
+  id String @id @default(cuid())
+
+  // Um anexo pertence a exatamente um pedido (diária OU hospedagem) — usado
+  // para AUTORIZACAO_LIMITE/RELATORIO_VIAGEM — OU a uma atividade da viagem
+  // — usado para PLANO_AULA/COMPROVANTE_ATIVIDADE. Nunca os dois.
+  pedidoDiariaId     String?
+  pedidoDiaria       PedidoDiaria?     @relation(fields: [pedidoDiariaId], references: [id])
+  pedidoHospedagemId String?
+  pedidoHospedagem   PedidoHospedagem? @relation(fields: [pedidoHospedagemId], references: [id])
+  atividadeId        String?
+  atividade          Atividade?        @relation(fields: [atividadeId], references: [id])
+
+  tipo        TipoAnexo
+  nomeArquivo String
+  caminho     String? // legado (armazenamento em disco); não usado mais, ver `conteudo`
+  conteudo    Bytes?
+  enviadoEm   DateTime  @default(now())
 }
 
 model Aprovacao {
-  id          String   @id @default(cuid())
-  pedidoId    String
-  pedido      PedidoDiaria @relation(fields: [pedidoId], references: [id])
-  aprovadorId String
-  aprovador   Usuario  @relation("AprovacoesFeitas", fields: [aprovadorId], references: [id])
-  decisao     String
-  motivo      String?
-  createdAt   DateTime @default(now())
+  id                 String            @id @default(cuid())
+  pedidoDiariaId     String?
+  pedidoDiaria       PedidoDiaria?     @relation(fields: [pedidoDiariaId], references: [id])
+  pedidoHospedagemId String?
+  pedidoHospedagem   PedidoHospedagem? @relation(fields: [pedidoHospedagemId], references: [id])
+  aprovadorId        String
+  aprovador          Usuario           @relation("AprovacoesFeitas", fields: [aprovadorId], references: [id])
+  decisao            String
+  motivo             String?
+  createdAt          DateTime          @default(now())
 }
 
 model OrcamentoUnidade {
-  id                String   @id @default(cuid())
-  unidadeId         String
-  unidade           Unidade  @relation(fields: [unidadeId], references: [id])
-  ano               Int
+  id                 String   @id @default(cuid())
+  unidadeId          String
+  unidade            Unidade  @relation(fields: [unidadeId], references: [id])
+  ano                Int
   valorTotalCentavos Int
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([unidadeId, ano])
 }
 
 model ConfiguracaoSistema {
-  id                       Int     @id @default(1)
-  limiteMensalDiarias      Int     @default(10)
-  prazoMinimoDiasAntecedencia Int  @default(5)
-  prazoRelatorioDiasUteis  Int     @default(5)
-  prazoDevolucaoDiasCorridos Int   @default(30)
-  kmMinimoSemPernoite      Int     @default(40)
-  duracaoMinimaHoras       Int     @default(6)
+  id                          Int @id @default(1)
+  limiteMensalDiarias         Int @default(10)
+  prazoMinimoDiasAntecedencia Int @default(5)
+  prazoRelatorioDiasUteis     Int @default(5)
+  prazoDevolucaoDiasCorridos  Int @default(30)
+  kmMinimoSemPernoite         Int @default(40)
+  duracaoMinimaHoras          Int @default(6)
 }

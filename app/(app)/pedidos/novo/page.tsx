@@ -9,6 +9,7 @@ export default async function NovoPedidoPage() {
   const [beneficiarios, tiposDestino, unidades, enquadramentos, config] = await Promise.all([
     prisma.beneficiario.findMany({
       where: { ativo: true },
+      include: { categoria: { select: { elegivelHospedagem: true } } },
       orderBy: { nome: "asc" },
     }),
     prisma.tipoDestino.findMany({ orderBy: { ordem: "asc" } }),
@@ -24,7 +25,7 @@ export default async function NovoPedidoPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold text-slate-900">Novo pedido de diária</h1>
+      <h1 className="text-lg font-semibold text-slate-900">Nova solicitação</h1>
       <NovoPedidoForm
         beneficiarios={beneficiarios}
         tiposDestino={tiposDestino}

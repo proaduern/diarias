@@ -24,7 +24,7 @@ export async function excluirUnidadeAction(unidadeId: string) {
   await exigirAdmin();
   const emUso = await prisma.usuario.count({ where: { unidadeId } });
   const emUso2 = await prisma.beneficiario.count({ where: { unidadeVinculoId: unidadeId } });
-  const emUso3 = await prisma.pedidoDiaria.count({ where: { unidadeSolicitanteId: unidadeId } });
+  const emUso3 = await prisma.viagem.count({ where: { unidadeSolicitanteId: unidadeId } });
   if (emUso + emUso2 + emUso3 > 0) {
     throw new Error("Esta unidade está em uso e não pode ser excluída.");
   }
@@ -105,6 +105,7 @@ export async function criarCategoriaAction(formData: FormData) {
   const nome = String(formData.get("nome") ?? "").trim();
   const descricao = String(formData.get("descricao") ?? "").trim() || null;
   const limiteAnualDias = Number(formData.get("limiteAnualDias") ?? 60);
+  const elegivelHospedagem = formData.get("elegivelHospedagem") === "on";
   const ordem = Number(formData.get("ordem") ?? 0);
 
   if (!nome) throw new Error("Informe o nome da categoria.");
@@ -113,7 +114,7 @@ export async function criarCategoriaAction(formData: FormData) {
   }
 
   await prisma.categoriaBeneficiario.create({
-    data: { nome, descricao, limiteAnualDias, ordem },
+    data: { nome, descricao, limiteAnualDias, elegivelHospedagem, ordem },
   });
   revalidatePath("/admin/categorias");
 }
@@ -123,6 +124,7 @@ export async function atualizarCategoriaAction(categoriaId: string, formData: Fo
   const nome = String(formData.get("nome") ?? "").trim();
   const descricao = String(formData.get("descricao") ?? "").trim() || null;
   const limiteAnualDias = Number(formData.get("limiteAnualDias") ?? 60);
+  const elegivelHospedagem = formData.get("elegivelHospedagem") === "on";
   const ordem = Number(formData.get("ordem") ?? 0);
 
   if (!nome) throw new Error("Informe o nome da categoria.");
@@ -134,7 +136,7 @@ export async function atualizarCategoriaAction(categoriaId: string, formData: Fo
   try {
     await prisma.categoriaBeneficiario.update({
       where: { id: categoriaId },
-      data: { nome, descricao, limiteAnualDias, ordem },
+      data: { nome, descricao, limiteAnualDias, elegivelHospedagem, ordem },
     });
   } catch (e) {
     const mensagem = e instanceof Error ? e.message : "";

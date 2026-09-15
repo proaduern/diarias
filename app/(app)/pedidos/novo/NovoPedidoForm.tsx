@@ -1,12 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
-import { criarPedidoAction, type CriarPedidoState } from "@/lib/actions/pedidos";
+import { useActionState, useState } from "react";
+import { criarViagemComPedidosAction, type CriarViagemState } from "@/lib/actions/viagens";
 import AtividadesFormSection from "./AtividadesFormSection";
 import SedeDestinoAeroportoSection from "./SedeDestinoAeroportoSection";
-import type { Beneficiario, EnquadramentoAtividade, TipoDestino, Unidade } from "@prisma/client";
+import type { Beneficiario, CategoriaBeneficiario, EnquadramentoAtividade, TipoDestino, Unidade } from "@prisma/client";
 
-const initialState: CriarPedidoState = {};
+const initialState: CriarViagemState = {};
+
+type BeneficiarioComCategoria = Beneficiario & {
+  categoria: Pick<CategoriaBeneficiario, "elegivelHospedagem">;
+};
 
 export default function NovoPedidoForm({
   beneficiarios,
@@ -17,7 +21,7 @@ export default function NovoPedidoForm({
   prazoMinimoDias,
   kmMinimo,
 }: {
-  beneficiarios: Beneficiario[];
+  beneficiarios: BeneficiarioComCategoria[];
   tiposDestino: TipoDestino[];
   unidades: Unidade[];
   enquadramentos: EnquadramentoAtividade[];
@@ -25,7 +29,11 @@ export default function NovoPedidoForm({
   prazoMinimoDias: number;
   kmMinimo: number;
 }) {
-  const [state, formAction, pending] = useActionState(criarPedidoAction, initialState);
+  const [state, formAction, pending] = useActionState(criarViagemComPedidosAction, initialState);
+  const [beneficiarioId, setBeneficiarioId] = useState("");
+
+  const beneficiarioSelecionado = beneficiarios.find((b) => b.id === beneficiarioId);
+  const elegivelHospedagem = beneficiarioSelecionado?.categoria.elegivelHospedagem ?? false;
 
   return (
     <form
@@ -59,6 +67,8 @@ export default function NovoPedidoForm({
         <select
           name="beneficiarioId"
           required
+          value={beneficiarioId}
+          onChange={(e) => setBeneficiarioId(e.target.value)}
           className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="">Selecione...</option>
@@ -127,7 +137,7 @@ export default function NovoPedidoForm({
         <p className="mt-1 text-xs text-slate-500">
           O KM informado será conferido pela distância aferida no Google Maps,
           para fins de padronização. Deslocamentos abaixo de {kmMinimo} km sem
-          pernoite não fazem jus a diária.
+          pernoite não fazem jus a benefício algum.
         </p>
       </div>
 
@@ -208,6 +218,30 @@ export default function NovoPedidoForm({
         </span>
       </label>
 
+      <div className="space-y-2 rounded-xl border border-slate-200 p-4">
+        <h2 className="text-sm font-semibold text-slate-900">Tipo de pedido</h2>
+        <p className="text-xs text-slate-500">
+          Diária e hospedagem são mutuamente exclusivas — a diária já cobre
+          alimentação e hospedagem. Cada tipo marcado gera um pedido próprio,
+          calculado a partir dos mesmos dados acima.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="tipoDiaria" defaultChecked />
+          Diária
+        </label>
+        {beneficiarioId && (
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="tipoHospedagem" disabled={!elegivelHospedagem} />
+            Hospedagem
+            {!elegivelHospedagem && (
+              <span className="text-xs text-slate-400">
+                (categoria do beneficiário não é elegível para hospedagem)
+              </span>
+            )}
+          </label>
+        )}
+      </div>
+
       {state.erro && (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.erro}
@@ -219,7 +253,7 @@ export default function NovoPedidoForm({
         disabled={pending}
         className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
-        {pending ? "Enviando..." : "Lançar pedido"}
+        {pending ? "Enviando..." : "Lançar solicitação"}
       </button>
     </form>
   );
