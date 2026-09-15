@@ -115,6 +115,56 @@ model Beneficiario {
 }
 
 // ---------------------------------------------------------------------------
+// Programação de atividades (Fase 1 da expansão multi-benefício)
+// ---------------------------------------------------------------------------
+
+enum CategoriaAtividade {
+  ACADEMICA
+  ADMINISTRATIVA
+}
+
+// Taxonomia de enquadramento de atividade, totalmente editável pelo admin
+// (a regulamentação muda com frequência — nunca hardcode nomes/subtipos no
+// código, sempre resolva por EnquadramentoAtividade.id).
+model EnquadramentoAtividade {
+  id                String             @id @default(cuid())
+  categoria         CategoriaAtividade
+  nome              String
+  descricao         String?
+  // Se marcado, o formulário exige um campo de detalhamento em texto livre
+  // (ex.: nome do projeto institucional, disciplina, "especifique").
+  exigeDetalhamento Boolean            @default(false)
+  // Se marcado, o formulário exige um anexo (ex.: plano de aula, comprovante).
+  exigeAnexo        Boolean            @default(false)
+  ativo             Boolean            @default(true)
+  ordem             Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  atividades Atividade[]
+
+  @@unique([categoria, nome])
+}
+
+model Atividade {
+  id              String   @id @default(cuid())
+  pedidoId        String
+  pedido          PedidoDiaria @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  enquadramentoId String
+  enquadramento   EnquadramentoAtividade @relation(fields: [enquadramentoId], references: [id])
+  descricao       String
+  detalhamento    String?
+  dataHoraInicio  DateTime
+  dataHoraFim     DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  anexos Anexo[]
+
+  @@index([pedidoId])
+}
+
+// ---------------------------------------------------------------------------
 // Pedido de diária
 // ---------------------------------------------------------------------------
 
@@ -124,6 +174,7 @@ model Beneficiario {
 // relatorioEnviadoEm (ver lib/prestacao-contas.ts) e não é armazenada aqui.
 enum StatusPedido {
   AGUARDANDO_JUSTIFICATIVA_PRAZO
+  AGUARDANDO_JUSTIFICATIVA_ATIVIDADE
   AGUARDANDO_DELIBERACAO_LIMITE
   AGUARDANDO_DEFERIMENTO
   DEFERIDO
@@ -133,6 +184,8 @@ enum StatusPedido {
 enum TipoAnexo {
   AUTORIZACAO_LIMITE
   RELATORIO_VIAGEM
+  PLANO_AULA
+  COMPROVANTE_ATIVIDADE
 }
 
 model PedidoDiaria {
@@ -168,6 +221,16 @@ model PedidoDiaria {
   justificativaPrazoCurto String?
   justificativaPrazoAceitaPor String?
 
+  // Exceção de horário de atividade (Fase 1): a viagem se estende além do
+  // estritamente necessário para as atividades vinculadas (chegada antes do
+  // início mínimo ou saída depois do fim máximo). Não bloqueia o pedido, mas
+  // exige ciência do demandante (diária/hospedagem só cobre o período estrito
+  // da atividade) e justificativa do gestor da unidade (sem prejuízo ao
+  // serviço, compensação dos dias afastados conforme legislação).
+  cienciaPrazoAtividade        Boolean @default(false)
+  justificativaGestorAtividade String?
+  justificativaGestorAceitaPor String?
+
   relatorioEnviadoEm       DateTime?
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
@@ -178,6 +241,7 @@ model PedidoDiaria {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  atividades  Atividade[]
   anexos      Anexo[]
   aprovacoes  Aprovacao[]
 
@@ -190,6 +254,12 @@ model Anexo {
   id           String    @id @default(cuid())
   pedidoId     String
   pedido       PedidoDiaria @relation(fields: [pedidoId], references: [id])
+  // Presente apenas para anexos de atividade (plano de aula, comprovante de
+  // treinamento). pedidoId continua preenchido nesse caso (denormalizado, a
+  // partir de atividade.pedidoId) para reaproveitar a autorização por
+  // unidade já existente em /api/anexos/[id].
+  atividadeId  String?
+  atividade    Atividade? @relation(fields: [atividadeId], references: [id])
   tipo         TipoAnexo
   nomeArquivo  String
   caminho      String? // legado (armazenamento em disco); não usado mais, ver `conteudo`

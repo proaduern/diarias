@@ -6,7 +6,7 @@ export default async function NovoPedidoPage() {
   const sessao = await obterSessao();
   if (!sessao) return null;
 
-  const [beneficiarios, tiposDestino, unidades, config] = await Promise.all([
+  const [beneficiarios, tiposDestino, unidades, enquadramentos, config] = await Promise.all([
     prisma.beneficiario.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
@@ -15,6 +15,10 @@ export default async function NovoPedidoPage() {
     sessao.perfil === "ADMIN"
       ? prisma.unidade.findMany({ orderBy: { nome: "asc" } })
       : Promise.resolve([]),
+    prisma.enquadramentoAtividade.findMany({
+      where: { ativo: true },
+      orderBy: [{ categoria: "asc" }, { ordem: "asc" }],
+    }),
     prisma.configuracaoSistema.findUnique({ where: { id: 1 } }),
   ]);
 
@@ -25,6 +29,7 @@ export default async function NovoPedidoPage() {
         beneficiarios={beneficiarios}
         tiposDestino={tiposDestino}
         unidades={unidades}
+        enquadramentos={enquadramentos}
         ehAdmin={sessao.perfil === "ADMIN"}
         prazoMinimoDias={config?.prazoMinimoDiasAntecedencia ?? 5}
         kmMinimo={config?.kmMinimoSemPernoite ?? 40}

@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { criarPedidoAction, type CriarPedidoState } from "@/lib/actions/pedidos";
-import type { Beneficiario, TipoDestino, Unidade } from "@prisma/client";
+import AtividadesFormSection from "./AtividadesFormSection";
+import type { Beneficiario, EnquadramentoAtividade, TipoDestino, Unidade } from "@prisma/client";
 
 const initialState: CriarPedidoState = {};
 
@@ -10,6 +11,7 @@ export default function NovoPedidoForm({
   beneficiarios,
   tiposDestino,
   unidades,
+  enquadramentos,
   ehAdmin,
   prazoMinimoDias,
   kmMinimo,
@@ -17,6 +19,7 @@ export default function NovoPedidoForm({
   beneficiarios: Beneficiario[];
   tiposDestino: TipoDestino[];
   unidades: Unidade[];
+  enquadramentos: EnquadramentoAtividade[];
   ehAdmin: boolean;
   prazoMinimoDias: number;
   kmMinimo: number;
@@ -187,6 +190,20 @@ export default function NovoPedidoForm({
           className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
+
+      <AtividadesFormSection enquadramentos={enquadramentos} />
+
+      <label className="flex items-start gap-2 text-xs text-slate-700">
+        <input type="checkbox" name="cienciaPrazoAtividade" className="mt-0.5" />
+        <span>
+          Tenho ciência de que, se a viagem incluir tempo além do
+          estritamente necessário para as atividades (chegada adiantada e/ou
+          saída atrasada), a diária/hospedagem cobre apenas o período estrito
+          da atividade — os dias de folga não são pagos, e o gestor da
+          unidade precisará justificar/autorizar essa folga antes do pedido
+          seguir no fluxo normal.
+        </span>
+      </label>
 
       {state.erro && (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">

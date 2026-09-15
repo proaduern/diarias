@@ -7,10 +7,16 @@ import AcoesPedido from "./AcoesPedido";
 
 const STATUS_LABEL: Record<string, string> = {
   AGUARDANDO_JUSTIFICATIVA_PRAZO: "Aguardando justificativa de prazo",
+  AGUARDANDO_JUSTIFICATIVA_ATIVIDADE: "Aguardando justificativa do gestor (folga de atividade)",
   AGUARDANDO_DELIBERACAO_LIMITE: "Aguardando deliberação de limite (Art. 15/16)",
   AGUARDANDO_DEFERIMENTO: "Aguardando deferimento",
   DEFERIDO: "Deferido",
   INDEFERIDO: "Indeferido",
+};
+
+const CATEGORIA_ATIVIDADE_LABEL: Record<string, string> = {
+  ACADEMICA: "Acadêmica",
+  ADMINISTRATIVA: "Administrativa",
 };
 
 const PRESTACAO_LABEL: Record<string, string> = {
@@ -38,6 +44,10 @@ export default async function PedidoDetalhePage({
         unidadeSolicitante: true,
         tipoDestino: true,
         anexos: true,
+        atividades: {
+          include: { enquadramento: true, anexos: true },
+          orderBy: { dataHoraInicio: "asc" },
+        },
         aprovacoes: { include: { aprovador: true }, orderBy: { createdAt: "desc" } },
         criadoPor: true,
       },
@@ -113,6 +123,48 @@ export default async function PedidoDetalhePage({
             />
           </div>
         )}
+        {pedido.justificativaGestorAtividade && (
+          <div className="sm:col-span-2">
+            <Campo
+              label="Justificativa do gestor (folga de atividade)"
+              valor={pedido.justificativaGestorAtividade}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          Programação de atividades
+        </h2>
+        <div className="space-y-3">
+          {pedido.atividades.map((a) => (
+            <div key={a.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <p className="text-xs font-medium text-slate-500">
+                {CATEGORIA_ATIVIDADE_LABEL[a.enquadramento.categoria]} — {a.enquadramento.nome}
+              </p>
+              <p className="text-sm text-slate-900">{a.descricao}</p>
+              {a.detalhamento && (
+                <p className="text-sm text-slate-600">{a.detalhamento}</p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                {formatarDataHora(a.dataHoraInicio)} até {formatarDataHora(a.dataHoraFim)}
+              </p>
+              {a.anexos.map((anexo) => (
+                <p key={anexo.id} className="mt-1 text-xs">
+                  <a
+                    href={`/api/anexos/${anexo.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-slate-700"
+                  >
+                    Abrir anexo: {anexo.nomeArquivo}
+                  </a>
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
       </section>
 
       {situacaoPrestacao && (

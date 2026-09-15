@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   UploadCloud,
+  ClipboardList,
 } from "lucide-react";
 import type { PerfilUsuario } from "@prisma/client";
 
@@ -24,6 +25,7 @@ const ICONE_POR_HREF: Record<string, typeof LayoutDashboard> = {
   "/admin/usuarios": UserCog,
   "/admin/categorias": Tags,
   "/admin/tipos-destino": MapPin,
+  "/admin/enquadramentos": ClipboardList,
   "/admin/valores": BarChart3,
   "/admin/configuracoes": Settings,
   "/importar-usuarios": UploadCloud,

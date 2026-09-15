@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import {
   aprovarJustificativaPrazoAction,
+  aprovarJustificativaAtividadeAction,
   anexarComprovanteLimiteAction,
   deferirLimiteAction,
   deferirPedidoAction,
@@ -33,6 +34,7 @@ export default function AcoesPedido({
   const [erro, setErro] = useState<string | null>(null);
   const [mostrarIndeferir, setMostrarIndeferir] = useState(false);
   const motivoRef = useRef<HTMLTextAreaElement>(null);
+  const justificativaAtividadeRef = useRef<HTMLTextAreaElement>(null);
 
   function executar(fn: () => Promise<unknown>) {
     setErro(null);
@@ -57,6 +59,36 @@ export default function AcoesPedido({
       >
         Aceitar justificativa de prazo
       </button>,
+    );
+  }
+
+  if (ehAdmin && pedido.status === "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE") {
+    acoes.push(
+      <form
+        key="aprovar-justificativa-atividade"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.set("justificativaGestorAtividade", justificativaAtividadeRef.current?.value ?? "");
+          executar(() => aprovarJustificativaAtividadeAction(pedido.id, formData));
+        }}
+        className="w-full space-y-2"
+      >
+        <textarea
+          ref={justificativaAtividadeRef}
+          required
+          placeholder="Justificativa do gestor: sem prejuízo ao serviço, dias de ausência compensados conforme legislação/normas"
+          rows={2}
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
+        >
+          Justificar/autorizar folga de atividade
+        </button>
+      </form>,
     );
   }
 
@@ -117,9 +149,12 @@ export default function AcoesPedido({
 
   if (
     ehAdmin &&
-    ["AGUARDANDO_JUSTIFICATIVA_PRAZO", "AGUARDANDO_DELIBERACAO_LIMITE", "AGUARDANDO_DEFERIMENTO"].includes(
-      pedido.status,
-    )
+    [
+      "AGUARDANDO_JUSTIFICATIVA_PRAZO",
+      "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE",
+      "AGUARDANDO_DELIBERACAO_LIMITE",
+      "AGUARDANDO_DEFERIMENTO",
+    ].includes(pedido.status)
   ) {
     acoes.push(
       <button
