@@ -26,6 +26,7 @@ export default async function PedidosPage() {
       unidadeSolicitante: true,
       pedidosDiaria: true,
       pedidosHospedagem: true,
+      pedidosPassagemAerea: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -74,13 +75,22 @@ export default async function PedidosPage() {
                       </div>
                     ))}
                     {v.pedidosHospedagem.map((p) => (
-                      <div key={p.id}>Hospedagem</div>
+                      <div key={p.id}>
+                        Hospedagem
+                        {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                      </div>
+                    ))}
+                    {v.pedidosPassagemAerea.map((p) => (
+                      <div key={p.id}>
+                        Passagem aérea
+                        {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                      </div>
                     ))}
                   </div>
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex flex-col gap-1">
-                    {[...v.pedidosDiaria, ...v.pedidosHospedagem].map((p) => (
+                    {[...v.pedidosDiaria, ...v.pedidosHospedagem, ...v.pedidosPassagemAerea].map((p) => (
                       <span
                         key={p.id}
                         className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700"

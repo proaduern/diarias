@@ -172,9 +172,10 @@ model Viagem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  atividades        Atividade[]
-  pedidosDiaria     PedidoDiaria[]
-  pedidosHospedagem PedidoHospedagem[]
+  atividades           Atividade[]
+  pedidosDiaria        PedidoDiaria[]
+  pedidosHospedagem    PedidoHospedagem[]
+  pedidosPassagemAerea PedidoPassagemAerea[]
 
   @@index([beneficiarioId])
   @@index([unidadeSolicitanteId])
@@ -303,8 +304,10 @@ model PedidoDiaria {
 // Viagem (diária já cobre alimentação+hospedagem). Elegível apenas para
 // beneficiários de categoria com `elegivelHospedagem = true` (ver
 // CategoriaBeneficiario), mapeamento editável pelo admin pois a
-// regulamentação pode mudar. Ainda sem motor de cálculo de valor — não há
-// tabela oficial de valores de hospedagem cadastrada no sistema.
+// regulamentação pode mudar. Não há tabela oficial de valores de
+// hospedagem no sistema — o valor vem de cotação feita fora do sistema e
+// é digitado manualmente pelo responsável (valorTotalCentavos), exigido
+// antes do deferimento.
 model PedidoHospedagem {
   id String @id @default(cuid())
 
@@ -312,6 +315,50 @@ model PedidoHospedagem {
   viagem   Viagem @relation(fields: [viagemId], references: [id])
 
   status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
+
+  // Cotação feita fora do sistema (hotel, diária de hospedagem etc.) e
+  // digitada manualmente pelo responsável — nunca calculada pelo sistema.
+  valorTotalCentavos Int?
+  valorCotadoPor     String?
+  valorCotadoEm      DateTime?
+
+  justificativaPrazoCurto     String?
+  justificativaPrazoAceitaPor String?
+
+  cienciaPrazoAtividade        Boolean @default(false)
+  justificativaGestorAtividade String?
+  justificativaGestorAceitaPor String?
+
+  relatorioEnviadoEm       DateTime?
+  pendenciaRegularizadaEm  DateTime?
+  pendenciaRegularizadaPor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anexos     Anexo[]
+  aprovacoes Aprovacao[]
+
+  @@index([viagemId])
+  @@index([status])
+}
+
+// Pedido de passagem aérea — não é mutuamente exclusivo com diária/
+// hospedagem (a consonância entre eles é garantida pela mesma programação
+// de atividades/horário crítico, compartilhada via Viagem). O valor da
+// passagem vem de cotação feita fora do sistema e é digitado manualmente
+// pelo responsável (admin ou alguém por ele designado), nunca calculado.
+model PedidoPassagemAerea {
+  id String @id @default(cuid())
+
+  viagemId String
+  viagem   Viagem @relation(fields: [viagemId], references: [id])
+
+  status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
+
+  valorTotalCentavos Int?
+  valorCotadoPor     String?
+  valorCotadoEm      DateTime?
 
   justificativaPrazoCurto     String?
   justificativaPrazoAceitaPor String?
@@ -340,12 +387,14 @@ model Anexo {
   // Um anexo pertence a exatamente um pedido (diária OU hospedagem) — usado
   // para AUTORIZACAO_LIMITE/RELATORIO_VIAGEM — OU a uma atividade da viagem
   // — usado para PLANO_AULA/COMPROVANTE_ATIVIDADE. Nunca os dois.
-  pedidoDiariaId     String?
-  pedidoDiaria       PedidoDiaria?     @relation(fields: [pedidoDiariaId], references: [id])
-  pedidoHospedagemId String?
-  pedidoHospedagem   PedidoHospedagem? @relation(fields: [pedidoHospedagemId], references: [id])
-  atividadeId        String?
-  atividade          Atividade?        @relation(fields: [atividadeId], references: [id])
+  pedidoDiariaId        String?
+  pedidoDiaria          PedidoDiaria?        @relation(fields: [pedidoDiariaId], references: [id])
+  pedidoHospedagemId    String?
+  pedidoHospedagem      PedidoHospedagem?    @relation(fields: [pedidoHospedagemId], references: [id])
+  pedidoPassagemAereaId String?
+  pedidoPassagemAerea   PedidoPassagemAerea? @relation(fields: [pedidoPassagemAereaId], references: [id])
+  atividadeId           String?
+  atividade             Atividade?           @relation(fields: [atividadeId], references: [id])
 
   tipo        TipoAnexo
   nomeArquivo String
@@ -355,16 +404,18 @@ model Anexo {
 }
 
 model Aprovacao {
-  id                 String            @id @default(cuid())
-  pedidoDiariaId     String?
-  pedidoDiaria       PedidoDiaria?     @relation(fields: [pedidoDiariaId], references: [id])
-  pedidoHospedagemId String?
-  pedidoHospedagem   PedidoHospedagem? @relation(fields: [pedidoHospedagemId], references: [id])
-  aprovadorId        String
-  aprovador          Usuario           @relation("AprovacoesFeitas", fields: [aprovadorId], references: [id])
-  decisao            String
-  motivo             String?
-  createdAt          DateTime          @default(now())
+  id                    String               @id @default(cuid())
+  pedidoDiariaId        String?
+  pedidoDiaria          PedidoDiaria?        @relation(fields: [pedidoDiariaId], references: [id])
+  pedidoHospedagemId    String?
+  pedidoHospedagem      PedidoHospedagem?    @relation(fields: [pedidoHospedagemId], references: [id])
+  pedidoPassagemAereaId String?
+  pedidoPassagemAerea   PedidoPassagemAerea? @relation(fields: [pedidoPassagemAereaId], references: [id])
+  aprovadorId           String
+  aprovador             Usuario              @relation("AprovacoesFeitas", fields: [aprovadorId], references: [id])
+  decisao               String
+  motivo                String?
+  createdAt             DateTime             @default(now())
 }
 
 model OrcamentoUnidade {

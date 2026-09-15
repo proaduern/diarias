@@ -61,6 +61,12 @@ export default async function ViagemDetalhePage({
             aprovacoes: { include: { aprovador: true }, orderBy: { createdAt: "desc" } },
           },
         },
+        pedidosPassagemAerea: {
+          include: {
+            anexos: true,
+            aprovacoes: { include: { aprovador: true }, orderBy: { createdAt: "desc" } },
+          },
+        },
       },
     }),
     prisma.configuracaoSistema.findUnique({ where: { id: 1 } }),
@@ -74,9 +80,21 @@ export default async function ViagemDetalhePage({
 
   const ehAdmin = sessao.perfil === "ADMIN";
 
-  const pedidos: { tipo: TipoPedido; label: string; pedido: (typeof viagem.pedidosDiaria)[number] | (typeof viagem.pedidosHospedagem)[number] }[] = [
+  const pedidos: {
+    tipo: TipoPedido;
+    label: string;
+    pedido:
+      | (typeof viagem.pedidosDiaria)[number]
+      | (typeof viagem.pedidosHospedagem)[number]
+      | (typeof viagem.pedidosPassagemAerea)[number];
+  }[] = [
     ...viagem.pedidosDiaria.map((p) => ({ tipo: "DIARIA" as const, label: "Diária", pedido: p })),
     ...viagem.pedidosHospedagem.map((p) => ({ tipo: "HOSPEDAGEM" as const, label: "Hospedagem", pedido: p })),
+    ...viagem.pedidosPassagemAerea.map((p) => ({
+      tipo: "PASSAGEM_AEREA" as const,
+      label: "Passagem aérea",
+      pedido: p,
+    })),
   ];
 
   return (
@@ -205,6 +223,17 @@ export default async function ViagemDetalhePage({
               </div>
             )}
 
+            {(tipo === "HOSPEDAGEM" || tipo === "PASSAGEM_AEREA") && "valorCotadoEm" in pedido && (
+              <Campo
+                label="Valor cotado (fora do sistema)"
+                valor={
+                  pedido.valorTotalCentavos != null
+                    ? `${formatarMoeda(pedido.valorTotalCentavos, "BRL")} — em ${formatarDataHora(pedido.valorCotadoEm!)}`
+                    : "Ainda não informado"
+                }
+              />
+            )}
+
             {pedido.justificativaPrazoCurto && (
               <Campo label="Justificativa de prazo curto" valor={pedido.justificativaPrazoCurto} />
             )}
@@ -256,6 +285,7 @@ export default async function ViagemDetalhePage({
                 status: pedido.status,
                 relatorioEnviadoEm: pedido.relatorioEnviadoEm,
                 pendenciaRegularizadaEm: pedido.pendenciaRegularizadaEm,
+                valorTotalCentavos: "valorCotadoEm" in pedido ? pedido.valorTotalCentavos : undefined,
               }}
               situacaoPrestacao={situacaoPrestacao?.situacao ?? null}
               ehAdmin={ehAdmin}

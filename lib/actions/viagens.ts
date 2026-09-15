@@ -98,9 +98,10 @@ export async function criarViagemComPedidosAction(
   // --- Tipos de pedido selecionados ---
   const querDiaria = formData.get("tipoDiaria") === "on";
   const querHospedagem = formData.get("tipoHospedagem") === "on";
+  const querPassagemAerea = formData.get("tipoPassagemAerea") === "on";
 
-  if (!querDiaria && !querHospedagem) {
-    return { erro: "Selecione ao menos um tipo de pedido (diária ou hospedagem)." };
+  if (!querDiaria && !querHospedagem && !querPassagemAerea) {
+    return { erro: "Selecione ao menos um tipo de pedido (diária, hospedagem ou passagem aérea)." };
   }
   if (querDiaria && querHospedagem) {
     return {
@@ -259,29 +260,25 @@ export async function criarViagemComPedidosAction(
     };
   }
 
-  // --- Prestação de contas: pendências bloqueantes de pedidos anteriores (diária ou hospedagem) ---
-  const [diariasDeferidasSemRelatorio, hospedagensDeferidasSemRelatorio] = await Promise.all([
-    prisma.pedidoDiaria.findMany({
-      where: {
-        viagem: { beneficiarioId: beneficiario.id },
-        status: "DEFERIDO",
-        relatorioEnviadoEm: null,
-        pendenciaRegularizadaEm: null,
-      },
-      include: { viagem: true },
-    }),
-    prisma.pedidoHospedagem.findMany({
-      where: {
-        viagem: { beneficiarioId: beneficiario.id },
-        status: "DEFERIDO",
-        relatorioEnviadoEm: null,
-        pendenciaRegularizadaEm: null,
-      },
-      include: { viagem: true },
-    }),
-  ]);
+  // --- Prestação de contas: pendências bloqueantes de pedidos anteriores (qualquer tipo) ---
+  const pendenciaWhere = {
+    viagem: { beneficiarioId: beneficiario.id },
+    status: "DEFERIDO" as const,
+    relatorioEnviadoEm: null,
+    pendenciaRegularizadaEm: null,
+  };
+  const [diariasDeferidasSemRelatorio, hospedagensDeferidasSemRelatorio, passagensDeferidasSemRelatorio] =
+    await Promise.all([
+      prisma.pedidoDiaria.findMany({ where: pendenciaWhere, include: { viagem: true } }),
+      prisma.pedidoHospedagem.findMany({ where: pendenciaWhere, include: { viagem: true } }),
+      prisma.pedidoPassagemAerea.findMany({ where: pendenciaWhere, include: { viagem: true } }),
+    ]);
 
-  for (const pedido of [...diariasDeferidasSemRelatorio, ...hospedagensDeferidasSemRelatorio]) {
+  for (const pedido of [
+    ...diariasDeferidasSemRelatorio,
+    ...hospedagensDeferidasSemRelatorio,
+    ...passagensDeferidasSemRelatorio,
+  ]) {
     const situacao = avaliarPrestacaoContas(
       { chegadaSede: pedido.viagem.chegadaSede, relatorioEnviadoEm: null },
       new Date(),
@@ -437,6 +434,19 @@ export async function criarViagemComPedidosAction(
         data: {
           viagemId: viagemCriada.id,
           status: statusHospedagem,
+          justificativaPrazoCurto,
+          cienciaPrazoAtividade,
+        },
+      });
+    }
+
+    if (querPassagemAerea) {
+      const statusPassagem: StatusPedido = statusComum ?? "AGUARDANDO_DEFERIMENTO";
+
+      await tx.pedidoPassagemAerea.create({
+        data: {
+          viagemId: viagemCriada.id,
+          status: statusPassagem,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,
         },

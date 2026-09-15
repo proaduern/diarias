@@ -8,7 +8,7 @@ import { avaliarHorarioAtividade } from "@/lib/atividades";
 import { lerArquivoEnviado } from "@/lib/storage";
 import type { StatusPedido } from "@prisma/client";
 
-export type TipoPedido = "DIARIA" | "HOSPEDAGEM";
+export type TipoPedido = "DIARIA" | "HOSPEDAGEM" | "PASSAGEM_AEREA";
 
 async function obterConfiguracao() {
   const config = await prisma.configuracaoSistema.findUnique({ where: { id: 1 } });
@@ -18,17 +18,18 @@ async function obterConfiguracao() {
   return config;
 }
 
+const includeViagem = {
+  viagem: { include: { beneficiario: { include: { categoria: true } }, atividades: true } },
+} as const;
+
 async function buscarPedido(tipo: TipoPedido, pedidoId: string) {
   if (tipo === "DIARIA") {
-    return prisma.pedidoDiaria.findUniqueOrThrow({
-      where: { id: pedidoId },
-      include: { viagem: { include: { beneficiario: { include: { categoria: true } }, atividades: true } } },
-    });
+    return prisma.pedidoDiaria.findUniqueOrThrow({ where: { id: pedidoId }, include: includeViagem });
   }
-  return prisma.pedidoHospedagem.findUniqueOrThrow({
-    where: { id: pedidoId },
-    include: { viagem: { include: { beneficiario: { include: { categoria: true } }, atividades: true } } },
-  });
+  if (tipo === "HOSPEDAGEM") {
+    return prisma.pedidoHospedagem.findUniqueOrThrow({ where: { id: pedidoId }, include: includeViagem });
+  }
+  return prisma.pedidoPassagemAerea.findUniqueOrThrow({ where: { id: pedidoId }, include: includeViagem });
 }
 
 async function verificarAcessoPedido(tipo: TipoPedido, pedidoId: string) {
@@ -43,17 +44,69 @@ async function verificarAcessoPedido(tipo: TipoPedido, pedidoId: string) {
 }
 
 function atualizarStatus(tipo: TipoPedido, pedidoId: string, status: StatusPedido) {
-  if (tipo === "DIARIA") {
-    return prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status } });
+  if (tipo === "DIARIA") return prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status } });
+  if (tipo === "HOSPEDAGEM") return prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { status } });
+  return prisma.pedidoPassagemAerea.update({ where: { id: pedidoId }, data: { status } });
+}
+
+function atualizarCampos(tipo: TipoPedido, pedidoId: string, data: Record<string, unknown>) {
+  if (tipo === "DIARIA") return prisma.pedidoDiaria.update({ where: { id: pedidoId }, data });
+  if (tipo === "HOSPEDAGEM") return prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data });
+  return prisma.pedidoPassagemAerea.update({ where: { id: pedidoId }, data });
+}
+
+function criarAprovacao(tipo: TipoPedido, pedidoId: string, aprovadorId: string, decisao: string, motivo?: string) {
+  const campoId =
+    tipo === "DIARIA" ? "pedidoDiariaId" : tipo === "HOSPEDAGEM" ? "pedidoHospedagemId" : "pedidoPassagemAereaId";
+  return prisma.aprovacao.create({ data: { [campoId]: pedidoId, aprovadorId, decisao, motivo } });
+}
+
+function criarAnexo(
+  tipo: TipoPedido,
+  pedidoId: string,
+  data: { tipo: "AUTORIZACAO_LIMITE" | "RELATORIO_VIAGEM"; nomeArquivo: string; conteudo: Uint8Array },
+) {
+  const campoId =
+    tipo === "DIARIA" ? "pedidoDiariaId" : tipo === "HOSPEDAGEM" ? "pedidoHospedagemId" : "pedidoPassagemAereaId";
+  return prisma.anexo.create({ data: { [campoId]: pedidoId, ...data } as never });
+}
+
+/** Só hospedagem e passagem aérea exigem valor cotado manualmente antes do deferimento. */
+function exigeValorCotado(tipo: TipoPedido): boolean {
+  return tipo === "HOSPEDAGEM" || tipo === "PASSAGEM_AEREA";
+}
+
+/**
+ * Preenchimento manual do valor cotado fora do sistema (hospedagem ou
+ * passagem aérea) — nunca calculado automaticamente, pois não há tabela
+ * oficial de valores para nenhum dos dois. Só admin (ou quem ele designar
+ * no futuro) preenche.
+ */
+export async function definirValorCotadoAction(tipo: TipoPedido, pedidoId: string, formData: FormData) {
+  if (!exigeValorCotado(tipo)) {
+    throw new Error("Este tipo de pedido não usa valor cotado manualmente.");
   }
-  return prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { status } });
+  const sessao = await exigirAdmin();
+  const valorReais = Number(formData.get("valor") ?? "");
+  if (!Number.isFinite(valorReais) || valorReais <= 0) {
+    throw new Error("Informe um valor válido, maior que zero.");
+  }
+
+  const pedido = await buscarPedido(tipo, pedidoId);
+  await atualizarCampos(tipo, pedidoId, {
+    valorTotalCentavos: Math.round(valorReais * 100),
+    valorCotadoPor: sessao.userId,
+    valorCotadoEm: new Date(),
+  });
+
+  revalidatePath(`/pedidos/${pedido.viagemId}`);
 }
 
 /**
  * Re-avalia, em ordem, os "gates" que podem ainda estar pendentes depois que
  * uma justificativa (prazo ou atividade) acaba de ser aceita: folga de
  * atividade ainda sem justificativa do gestor -> limite mensal/anual (só
- * diária, hospedagem não tem esse conceito) -> deferimento.
+ * diária, os demais tipos não têm esse conceito) -> deferimento.
  */
 async function reavaliarStatusPosJustificativas(tipo: TipoPedido, pedidoId: string) {
   const pedido = await buscarPedido(tipo, pedidoId);
@@ -70,7 +123,7 @@ async function reavaliarStatusPosJustificativas(tipo: TipoPedido, pedidoId: stri
     }
   }
 
-  if (tipo === "HOSPEDAGEM") {
+  if (tipo !== "DIARIA") {
     await atualizarStatus(tipo, pedidoId, "AGUARDANDO_DEFERIMENTO");
     return;
   }
@@ -108,11 +161,7 @@ export async function aprovarJustificativaPrazoAction(tipo: TipoPedido, pedidoId
     throw new Error("Este pedido não está aguardando justificativa de prazo.");
   }
 
-  if (tipo === "DIARIA") {
-    await prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { justificativaPrazoAceitaPor: sessao.userId } });
-  } else {
-    await prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { justificativaPrazoAceitaPor: sessao.userId } });
-  }
+  await atualizarCampos(tipo, pedidoId, { justificativaPrazoAceitaPor: sessao.userId });
 
   await reavaliarStatusPosJustificativas(tipo, pedidoId);
   revalidatePath(`/pedidos/${pedido.viagemId}`);
@@ -142,19 +191,17 @@ export async function aprovarJustificativaAtividadeAction(
     throw new Error("Informe a justificativa do gestor (sem prejuízo ao serviço e compensação dos dias de ausência).");
   }
 
-  const data = { justificativaGestorAtividade, justificativaGestorAceitaPor: sessao.userId };
-  if (tipo === "DIARIA") {
-    await prisma.pedidoDiaria.update({ where: { id: pedidoId }, data });
-  } else {
-    await prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data });
-  }
+  await atualizarCampos(tipo, pedidoId, {
+    justificativaGestorAtividade,
+    justificativaGestorAceitaPor: sessao.userId,
+  });
 
   await reavaliarStatusPosJustificativas(tipo, pedidoId);
   revalidatePath(`/pedidos/${pedido.viagemId}`);
   revalidatePath("/pedidos");
 }
 
-/** Só diária tem deliberação de limite (Art. 15/16) — hospedagem não. */
+/** Só diária tem deliberação de limite (Art. 15/16) — hospedagem e passagem aérea não. */
 export async function anexarComprovanteLimiteAction(pedidoId: string, formData: FormData) {
   const { pedido } = await verificarAcessoPedido("DIARIA", pedidoId);
 
@@ -172,15 +219,12 @@ export async function anexarComprovanteLimiteAction(pedidoId: string, formData: 
 
   const arquivoLido = await lerArquivoEnviado(arquivo);
 
-  await prisma.anexo.create({
-    data: {
-      pedidoDiariaId: pedidoId,
-      tipo: "AUTORIZACAO_LIMITE",
-      nomeArquivo: arquivoLido.nomeArquivo,
-      // ArrayBuffer vs. ArrayBufferLike: mesma divergência de versão de tipos
-      // do @types/node explicada em lib/storage.ts; em runtime é um Uint8Array normal.
-      conteudo: arquivoLido.conteudo as never,
-    },
+  await criarAnexo("DIARIA", pedidoId, {
+    tipo: "AUTORIZACAO_LIMITE",
+    nomeArquivo: arquivoLido.nomeArquivo,
+    // ArrayBuffer vs. ArrayBufferLike: mesma divergência de versão de tipos
+    // do @types/node explicada em lib/storage.ts; em runtime é um Uint8Array normal.
+    conteudo: arquivoLido.conteudo as never,
   });
 
   revalidatePath(`/pedidos/${pedido.viagemId}`);
@@ -216,16 +260,13 @@ export async function deferirPedidoAction(tipo: TipoPedido, pedidoId: string) {
     throw new Error("Este pedido não está aguardando deferimento.");
   }
 
-  const aprovacaoData =
-    tipo === "DIARIA"
-      ? { pedidoDiariaId: pedidoId, aprovadorId: sessao.userId, decisao: "DEFERIDO" }
-      : { pedidoHospedagemId: pedidoId, aprovadorId: sessao.userId, decisao: "DEFERIDO" };
+  if (exigeValorCotado(tipo) && "valorTotalCentavos" in pedido && pedido.valorTotalCentavos == null) {
+    throw new Error("Informe o valor cotado (fora do sistema) antes de deferir este pedido.");
+  }
 
   await prisma.$transaction([
-    tipo === "DIARIA"
-      ? prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status: "DEFERIDO" } })
-      : prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { status: "DEFERIDO" } }),
-    prisma.aprovacao.create({ data: aprovacaoData }),
+    atualizarStatus(tipo, pedidoId, "DEFERIDO"),
+    criarAprovacao(tipo, pedidoId, sessao.userId, "DEFERIDO"),
   ]);
 
   revalidatePath(`/pedidos/${pedido.viagemId}`);
@@ -241,16 +282,9 @@ export async function indeferirPedidoAction(tipo: TipoPedido, pedidoId: string, 
     throw new Error("Informe o motivo do indeferimento.");
   }
 
-  const aprovacaoData =
-    tipo === "DIARIA"
-      ? { pedidoDiariaId: pedidoId, aprovadorId: sessao.userId, decisao: "INDEFERIDO", motivo }
-      : { pedidoHospedagemId: pedidoId, aprovadorId: sessao.userId, decisao: "INDEFERIDO", motivo };
-
   await prisma.$transaction([
-    tipo === "DIARIA"
-      ? prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status: "INDEFERIDO" } })
-      : prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { status: "INDEFERIDO" } }),
-    prisma.aprovacao.create({ data: aprovacaoData }),
+    atualizarStatus(tipo, pedidoId, "INDEFERIDO"),
+    criarAprovacao(tipo, pedidoId, sessao.userId, "INDEFERIDO", motivo),
   ]);
 
   revalidatePath(`/pedidos/${pedido.viagemId}`);
@@ -273,16 +307,14 @@ export async function enviarRelatorioViagemAction(tipo: TipoPedido, pedidoId: st
   }
 
   const arquivoLido = await lerArquivoEnviado(arquivo);
-  const anexoData =
-    tipo === "DIARIA"
-      ? { pedidoDiariaId: pedidoId, tipo: "RELATORIO_VIAGEM" as const, nomeArquivo: arquivoLido.nomeArquivo, conteudo: arquivoLido.conteudo as never }
-      : { pedidoHospedagemId: pedidoId, tipo: "RELATORIO_VIAGEM" as const, nomeArquivo: arquivoLido.nomeArquivo, conteudo: arquivoLido.conteudo as never };
 
   await prisma.$transaction([
-    prisma.anexo.create({ data: anexoData }),
-    tipo === "DIARIA"
-      ? prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { relatorioEnviadoEm: new Date() } })
-      : prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data: { relatorioEnviadoEm: new Date() } }),
+    criarAnexo(tipo, pedidoId, {
+      tipo: "RELATORIO_VIAGEM",
+      nomeArquivo: arquivoLido.nomeArquivo,
+      conteudo: arquivoLido.conteudo as never,
+    }),
+    atualizarCampos(tipo, pedidoId, { relatorioEnviadoEm: new Date() }),
   ]);
 
   revalidatePath(`/pedidos/${pedido.viagemId}`);
@@ -292,13 +324,11 @@ export async function enviarRelatorioViagemAction(tipo: TipoPedido, pedidoId: st
 export async function regularizarPendenciaAction(tipo: TipoPedido, pedidoId: string) {
   const sessao = await exigirAdmin();
   const pedido = await buscarPedido(tipo, pedidoId);
-  const data = { pendenciaRegularizadaEm: new Date(), pendenciaRegularizadaPor: sessao.userId };
 
-  if (tipo === "DIARIA") {
-    await prisma.pedidoDiaria.update({ where: { id: pedidoId }, data });
-  } else {
-    await prisma.pedidoHospedagem.update({ where: { id: pedidoId }, data });
-  }
+  await atualizarCampos(tipo, pedidoId, {
+    pendenciaRegularizadaEm: new Date(),
+    pendenciaRegularizadaPor: sessao.userId,
+  });
 
   revalidatePath(`/pedidos/${pedido.viagemId}`);
   revalidatePath("/pedidos");

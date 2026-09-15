@@ -11,21 +11,22 @@ export default async function DashboardPage() {
       ? {}
       : { unidadeSolicitanteId: sessao.unidadeId ?? "__nenhuma__" };
 
-  async function contarAmbosOsTipos(status?: string) {
+  async function contarTodosOsTipos(status?: string) {
     const where = { viagem: filtroUnidade, ...(status ? { status: status as never } : {}) };
-    const [diarias, hospedagens] = await Promise.all([
+    const [diarias, hospedagens, passagens] = await Promise.all([
       prisma.pedidoDiaria.count({ where }),
       prisma.pedidoHospedagem.count({ where }),
+      prisma.pedidoPassagemAerea.count({ where }),
     ]);
-    return diarias + hospedagens;
+    return diarias + hospedagens + passagens;
   }
 
   const [total, aguardandoDeferimento, aguardandoJustificativa, aguardandoDeliberacao] =
     await Promise.all([
-      contarAmbosOsTipos(),
-      contarAmbosOsTipos("AGUARDANDO_DEFERIMENTO"),
-      contarAmbosOsTipos("AGUARDANDO_JUSTIFICATIVA_PRAZO"),
-      contarAmbosOsTipos("AGUARDANDO_DELIBERACAO_LIMITE"),
+      contarTodosOsTipos(),
+      contarTodosOsTipos("AGUARDANDO_DEFERIMENTO"),
+      contarTodosOsTipos("AGUARDANDO_JUSTIFICATIVA_PRAZO"),
+      contarTodosOsTipos("AGUARDANDO_DELIBERACAO_LIMITE"),
     ]);
 
   const cards = [

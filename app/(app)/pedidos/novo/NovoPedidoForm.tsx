@@ -240,6 +240,13 @@ export default function NovoPedidoForm({
             )}
           </label>
         )}
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="tipoPassagemAerea" />
+          Passagem aérea
+          <span className="text-xs text-slate-400">
+            (valor preenchido manualmente pelo responsável após cotação externa)
+          </span>
+        </label>
       </div>
 
       {state.erro && (
