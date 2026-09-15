@@ -1,18 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { atualizarCategoriaAction } from "@/lib/actions/admin";
+import { atualizarEnquadramentoAction } from "@/lib/actions/admin";
 
-interface CategoriaParaEdicao {
+interface EnquadramentoParaEdicao {
   id: string;
+  categoria: "ACADEMICA" | "ADMINISTRATIVA";
   nome: string;
   descricao: string | null;
-  limiteAnualDias: number;
-  elegivelHospedagem: boolean;
+  exigeDetalhamento: boolean;
+  exigeAnexo: boolean;
+  ativo: boolean;
   ordem: number;
 }
 
-export default function EditarCategoriaForm({ categoria }: { categoria: CategoriaParaEdicao }) {
+export default function EditarEnquadramentoForm({
+  enquadramento,
+}: {
+  enquadramento: EnquadramentoParaEdicao;
+}) {
   const [aberto, setAberto] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
@@ -33,21 +39,33 @@ export default function EditarCategoriaForm({ categoria }: { categoria: Categori
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarCategoriaAction(categoria.id, formData);
+            await atualizarEnquadramentoAction(enquadramento.id, formData);
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");
           }
         });
       }}
-      className="mt-2 w-72 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
+      className="mt-2 w-80 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
     >
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-700">Categoria</label>
+        <select
+          name="categoria"
+          required
+          defaultValue={enquadramento.categoria}
+          className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+        >
+          <option value="ACADEMICA">Acadêmica</option>
+          <option value="ADMINISTRATIVA">Administrativa</option>
+        </select>
+      </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-700">Nome</label>
         <input
           name="nome"
           required
-          defaultValue={categoria.nome}
+          defaultValue={enquadramento.nome}
           className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
         />
       </div>
@@ -55,41 +73,32 @@ export default function EditarCategoriaForm({ categoria }: { categoria: Categori
         <label className="mb-1 block text-xs font-medium text-slate-700">Descrição</label>
         <input
           name="descricao"
-          defaultValue={categoria.descricao ?? ""}
+          defaultValue={enquadramento.descricao ?? ""}
           className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
         />
       </div>
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-slate-700">
-            Limite anual (dias)
-          </label>
-          <input
-            name="limiteAnualDias"
-            type="number"
-            min={1}
-            required
-            defaultValue={categoria.limiteAnualDias}
-            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
-          />
-        </div>
-        <div className="flex-1">
           <label className="mb-1 block text-xs font-medium text-slate-700">Ordem</label>
           <input
             name="ordem"
             type="number"
-            defaultValue={categoria.ordem}
+            defaultValue={enquadramento.ordem}
             className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
           />
         </div>
       </div>
       <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-        <input
-          type="checkbox"
-          name="elegivelHospedagem"
-          defaultChecked={categoria.elegivelHospedagem}
-        />
-        Elegível para hospedagem
+        <input type="checkbox" name="exigeDetalhamento" defaultChecked={enquadramento.exigeDetalhamento} />
+        Exige detalhamento (texto livre)
+      </label>
+      <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+        <input type="checkbox" name="exigeAnexo" defaultChecked={enquadramento.exigeAnexo} />
+        Exige anexo
+      </label>
+      <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+        <input type="checkbox" name="ativo" defaultChecked={enquadramento.ativo} />
+        Ativo (aparece para novos pedidos)
       </label>
 
       {erro && <p className="text-xs text-red-600">{erro}</p>}

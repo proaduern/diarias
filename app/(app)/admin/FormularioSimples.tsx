@@ -61,6 +61,8 @@ export default function FormularioSimples({
                   </option>
                 ))}
               </select>
+            ) : c.type === "checkbox" ? (
+              <input type="checkbox" name={c.name} className="h-4 w-4" />
             ) : (
               <input
                 name={c.name}

@@ -28,6 +28,7 @@ export default async function CategoriasPage() {
           { name: "nome", label: "Nome", required: true },
           { name: "descricao", label: "Descrição" },
           { name: "limiteAnualDias", label: "Limite anual de dias (Art. 16)", type: "number", required: true },
+          { name: "elegivelHospedagem", label: "Elegível para hospedagem", type: "checkbox" },
           { name: "ordem", label: "Ordem de exibição", type: "number" },
         ]}
       />
@@ -39,6 +40,7 @@ export default async function CategoriasPage() {
               <th className="px-4 py-2 font-medium">Nome</th>
               <th className="px-4 py-2 font-medium">Descrição</th>
               <th className="px-4 py-2 font-medium">Limite anual (dias)</th>
+              <th className="px-4 py-2 font-medium">Hospedagem</th>
               <th className="px-4 py-2 font-medium">Ações</th>
             </tr>
           </thead>
@@ -48,6 +50,7 @@ export default async function CategoriasPage() {
                 <td className="px-4 py-2 text-slate-900">{c.nome}</td>
                 <td className="px-4 py-2 text-slate-600">{c.descricao ?? "-"}</td>
                 <td className="px-4 py-2 text-slate-600">{c.limiteAnualDias}</td>
+                <td className="px-4 py-2 text-slate-600">{c.elegivelHospedagem ? "Sim" : "Não"}</td>
                 <td className="px-4 py-2 space-y-1">
                   <EditarCategoriaForm
                     categoria={{
@@ -55,6 +58,7 @@ export default async function CategoriasPage() {
                       nome: c.nome,
                       descricao: c.descricao,
                       limiteAnualDias: c.limiteAnualDias,
+                      elegivelHospedagem: c.elegivelHospedagem,
                       ordem: c.ordem,
                     }}
                   />

@@ -11,14 +11,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const anexo = await prisma.anexo.findUnique({
     where: { id },
-    include: { pedido: true },
+    include: {
+      pedidoDiaria: { include: { viagem: true } },
+      pedidoHospedagem: { include: { viagem: true } },
+      atividade: { include: { viagem: true } },
+    },
   });
 
   if (!anexo) {
     return NextResponse.json({ erro: "Anexo não encontrado." }, { status: 404 });
   }
 
-  if (sessao.perfil !== "ADMIN" && anexo.pedido.unidadeSolicitanteId !== sessao.unidadeId) {
+  const unidadeSolicitanteId =
+    anexo.pedidoDiaria?.viagem.unidadeSolicitanteId ??
+    anexo.pedidoHospedagem?.viagem.unidadeSolicitanteId ??
+    anexo.atividade?.viagem.unidadeSolicitanteId;
+
+  if (sessao.perfil !== "ADMIN" && unidadeSolicitanteId !== sessao.unidadeId) {
     return NextResponse.json({ erro: "Acesso negado." }, { status: 403 });
   }
 

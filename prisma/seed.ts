@@ -151,6 +151,85 @@ async function main() {
     }
   }
 
+  console.log("Seed: taxonomia de enquadramento de atividade...");
+  const enquadramentos: {
+    categoria: "ACADEMICA" | "ADMINISTRATIVA";
+    nome: string;
+    descricao?: string;
+    exigeDetalhamento?: boolean;
+    exigeAnexo?: boolean;
+    ordem: number;
+  }[] = [
+    {
+      categoria: "ACADEMICA",
+      nome: "Extensão",
+      descricao: "Projeto institucional de extensão",
+      exigeDetalhamento: true,
+      ordem: 1,
+    },
+    {
+      categoria: "ACADEMICA",
+      nome: "Pesquisa",
+      descricao: "Projeto ou grupo de pesquisa institucional",
+      exigeDetalhamento: true,
+      ordem: 2,
+    },
+    {
+      categoria: "ACADEMICA",
+      nome: "Aula de campo",
+      descricao: "Disciplina vinculada, com plano de aula anexado",
+      exigeDetalhamento: true,
+      exigeAnexo: true,
+      ordem: 3,
+    },
+    { categoria: "ACADEMICA", nome: "Evento", ordem: 4 },
+    {
+      categoria: "ACADEMICA",
+      nome: "Outra",
+      descricao: "Especifique a atividade acadêmica",
+      exigeDetalhamento: true,
+      ordem: 5,
+    },
+    {
+      categoria: "ADMINISTRATIVA",
+      nome: "Treinamento/curso de aperfeiçoamento",
+      exigeAnexo: true,
+      ordem: 1,
+    },
+    {
+      categoria: "ADMINISTRATIVA",
+      nome: "Visita de comissão externa do Conselho Estadual de Educação",
+      ordem: 2,
+    },
+    {
+      categoria: "ADMINISTRATIVA",
+      nome: "Atividade administrativa em geral",
+      descricao: "Descreva a atividade",
+      exigeDetalhamento: true,
+      ordem: 3,
+    },
+  ];
+
+  for (const e of enquadramentos) {
+    await prisma.enquadramentoAtividade.upsert({
+      where: { categoria_nome: { categoria: e.categoria, nome: e.nome } },
+      update: {
+        descricao: e.descricao,
+        exigeDetalhamento: e.exigeDetalhamento ?? false,
+        exigeAnexo: e.exigeAnexo ?? false,
+        ordem: e.ordem,
+      },
+      create: {
+        categoria: e.categoria,
+        nome: e.nome,
+        descricao: e.descricao,
+        exigeDetalhamento: e.exigeDetalhamento ?? false,
+        exigeAnexo: e.exigeAnexo ?? false,
+        ordem: e.ordem,
+      },
+    });
+  }
+
   console.log("Seed: unidade e usuário administrador...");
   const unidadeReitoria = await prisma.unidade.upsert({
     where: { id: "unidade-reitoria-seed" },

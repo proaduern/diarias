@@ -6,23 +6,27 @@ export default async function DashboardPage() {
   const sessao = await obterSessao();
   if (!sessao) return null;
 
-  const where =
+  const filtroUnidade =
     sessao.perfil === "ADMIN"
       ? {}
       : { unidadeSolicitanteId: sessao.unidadeId ?? "__nenhuma__" };
 
+  async function contarTodosOsTipos(status?: string) {
+    const where = { viagem: filtroUnidade, ...(status ? { status: status as never } : {}) };
+    const [diarias, hospedagens, passagens] = await Promise.all([
+      prisma.pedidoDiaria.count({ where }),
+      prisma.pedidoHospedagem.count({ where }),
+      prisma.pedidoPassagemAerea.count({ where }),
+    ]);
+    return diarias + hospedagens + passagens;
+  }
+
   const [total, aguardandoDeferimento, aguardandoJustificativa, aguardandoDeliberacao] =
     await Promise.all([
-      prisma.pedidoDiaria.count({ where }),
-      prisma.pedidoDiaria.count({
-        where: { ...where, status: "AGUARDANDO_DEFERIMENTO" },
-      }),
-      prisma.pedidoDiaria.count({
-        where: { ...where, status: "AGUARDANDO_JUSTIFICATIVA_PRAZO" },
-      }),
-      prisma.pedidoDiaria.count({
-        where: { ...where, status: "AGUARDANDO_DELIBERACAO_LIMITE" },
-      }),
+      contarTodosOsTipos(),
+      contarTodosOsTipos("AGUARDANDO_DEFERIMENTO"),
+      contarTodosOsTipos("AGUARDANDO_JUSTIFICATIVA_PRAZO"),
+      contarTodosOsTipos("AGUARDANDO_DELIBERACAO_LIMITE"),
     ]);
 
   const cards = [
@@ -40,7 +44,7 @@ export default async function DashboardPage() {
           href="/pedidos/novo"
           className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244]"
         >
-          Novo pedido de diária
+          Nova solicitação
         </Link>
       </div>
 

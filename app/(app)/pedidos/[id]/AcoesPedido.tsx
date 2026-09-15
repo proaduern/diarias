@@ -3,12 +3,15 @@
 import { useRef, useState, useTransition } from "react";
 import {
   aprovarJustificativaPrazoAction,
+  aprovarJustificativaAtividadeAction,
   anexarComprovanteLimiteAction,
   deferirLimiteAction,
   deferirPedidoAction,
+  definirValorCotadoAction,
   indeferirPedidoAction,
   enviarRelatorioViagemAction,
   regularizarPendenciaAction,
+  type TipoPedido,
 } from "@/lib/actions/pedidos";
 
 interface PedidoAcoes {
@@ -16,14 +19,18 @@ interface PedidoAcoes {
   status: string;
   relatorioEnviadoEm: Date | null;
   pendenciaRegularizadaEm: Date | null;
+  /** Só se aplica a hospedagem/passagem aérea — undefined para diária. */
+  valorTotalCentavos?: number | null;
 }
 
 export default function AcoesPedido({
+  tipo,
   pedido,
   situacaoPrestacao,
   ehAdmin,
   temComprovanteLimite,
 }: {
+  tipo: TipoPedido;
   pedido: PedidoAcoes;
   situacaoPrestacao: string | null;
   ehAdmin: boolean;
@@ -33,6 +40,11 @@ export default function AcoesPedido({
   const [erro, setErro] = useState<string | null>(null);
   const [mostrarIndeferir, setMostrarIndeferir] = useState(false);
   const motivoRef = useRef<HTMLTextAreaElement>(null);
+  const justificativaAtividadeRef = useRef<HTMLTextAreaElement>(null);
+  const valorCotadoRef = useRef<HTMLInputElement>(null);
+
+  const exigeValorCotado = tipo === "HOSPEDAGEM" || tipo === "PASSAGEM_AEREA";
+  const valorCotadoFaltando = exigeValorCotado && pedido.valorTotalCentavos == null;
 
   function executar(fn: () => Promise<unknown>) {
     setErro(null);
@@ -52,7 +64,7 @@ export default function AcoesPedido({
       <button
         key="aprovar-justificativa"
         disabled={isPending}
-        onClick={() => executar(() => aprovarJustificativaPrazoAction(pedido.id))}
+        onClick={() => executar(() => aprovarJustificativaPrazoAction(tipo, pedido.id))}
         className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         Aceitar justificativa de prazo
@@ -60,7 +72,37 @@ export default function AcoesPedido({
     );
   }
 
-  if (pedido.status === "AGUARDANDO_DELIBERACAO_LIMITE") {
+  if (ehAdmin && pedido.status === "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE") {
+    acoes.push(
+      <form
+        key="aprovar-justificativa-atividade"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.set("justificativaGestorAtividade", justificativaAtividadeRef.current?.value ?? "");
+          executar(() => aprovarJustificativaAtividadeAction(tipo, pedido.id, formData));
+        }}
+        className="w-full space-y-2"
+      >
+        <textarea
+          ref={justificativaAtividadeRef}
+          required
+          placeholder="Justificativa do gestor: sem prejuízo ao serviço, dias de ausência compensados conforme legislação/normas"
+          rows={2}
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
+        >
+          Justificar/autorizar folga de atividade
+        </button>
+      </form>,
+    );
+  }
+
+  if (tipo === "DIARIA" && pedido.status === "AGUARDANDO_DELIBERACAO_LIMITE") {
     acoes.push(
       <form
         key="anexar-comprovante"
@@ -102,12 +144,46 @@ export default function AcoesPedido({
     }
   }
 
+  if (ehAdmin && exigeValorCotado && pedido.status === "AGUARDANDO_DEFERIMENTO" && valorCotadoFaltando) {
+    acoes.push(
+      <form
+        key="definir-valor-cotado"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData();
+          formData.set("valor", valorCotadoRef.current?.value ?? "");
+          executar(() => definirValorCotadoAction(tipo, pedido.id, formData));
+        }}
+        className="flex items-center gap-2"
+      >
+        <span className="text-sm text-slate-700">Valor cotado (R$):</span>
+        <input
+          ref={valorCotadoRef}
+          type="number"
+          step="0.01"
+          min="0.01"
+          required
+          placeholder="0,00"
+          className="w-32 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-60"
+        >
+          Salvar valor cotado
+        </button>
+      </form>,
+    );
+  }
+
   if (ehAdmin && pedido.status === "AGUARDANDO_DEFERIMENTO") {
     acoes.push(
       <button
         key="deferir"
-        disabled={isPending}
-        onClick={() => executar(() => deferirPedidoAction(pedido.id))}
+        disabled={isPending || valorCotadoFaltando}
+        onClick={() => executar(() => deferirPedidoAction(tipo, pedido.id))}
+        title={valorCotadoFaltando ? "Informe o valor cotado antes de deferir." : undefined}
         className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         Deferir
@@ -117,9 +193,12 @@ export default function AcoesPedido({
 
   if (
     ehAdmin &&
-    ["AGUARDANDO_JUSTIFICATIVA_PRAZO", "AGUARDANDO_DELIBERACAO_LIMITE", "AGUARDANDO_DEFERIMENTO"].includes(
-      pedido.status,
-    )
+    [
+      "AGUARDANDO_JUSTIFICATIVA_PRAZO",
+      "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE",
+      "AGUARDANDO_DELIBERACAO_LIMITE",
+      "AGUARDANDO_DEFERIMENTO",
+    ].includes(pedido.status)
   ) {
     acoes.push(
       <button
@@ -146,7 +225,7 @@ export default function AcoesPedido({
           e.preventDefault();
           const form = e.currentTarget;
           const formData = new FormData(form);
-          executar(() => enviarRelatorioViagemAction(pedido.id, formData));
+          executar(() => enviarRelatorioViagemAction(tipo, pedido.id, formData));
         }}
         className="flex items-center gap-2"
       >
@@ -172,7 +251,7 @@ export default function AcoesPedido({
       <button
         key="regularizar"
         disabled={isPending}
-        onClick={() => executar(() => regularizarPendenciaAction(pedido.id))}
+        onClick={() => executar(() => regularizarPendenciaAction(tipo, pedido.id))}
         className="rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-60"
       >
         Marcar pendência como regularizada
@@ -193,7 +272,7 @@ export default function AcoesPedido({
             e.preventDefault();
             const formData = new FormData();
             formData.set("motivo", motivoRef.current?.value ?? "");
-            executar(() => indeferirPedidoAction(pedido.id, formData));
+            executar(() => indeferirPedidoAction(tipo, pedido.id, formData));
           }}
           className="space-y-2"
         >

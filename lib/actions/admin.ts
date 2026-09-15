@@ -24,7 +24,7 @@ export async function excluirUnidadeAction(unidadeId: string) {
   await exigirAdmin();
   const emUso = await prisma.usuario.count({ where: { unidadeId } });
   const emUso2 = await prisma.beneficiario.count({ where: { unidadeVinculoId: unidadeId } });
-  const emUso3 = await prisma.pedidoDiaria.count({ where: { unidadeSolicitanteId: unidadeId } });
+  const emUso3 = await prisma.viagem.count({ where: { unidadeSolicitanteId: unidadeId } });
   if (emUso + emUso2 + emUso3 > 0) {
     throw new Error("Esta unidade está em uso e não pode ser excluída.");
   }
@@ -105,6 +105,7 @@ export async function criarCategoriaAction(formData: FormData) {
   const nome = String(formData.get("nome") ?? "").trim();
   const descricao = String(formData.get("descricao") ?? "").trim() || null;
   const limiteAnualDias = Number(formData.get("limiteAnualDias") ?? 60);
+  const elegivelHospedagem = formData.get("elegivelHospedagem") === "on";
   const ordem = Number(formData.get("ordem") ?? 0);
 
   if (!nome) throw new Error("Informe o nome da categoria.");
@@ -113,7 +114,7 @@ export async function criarCategoriaAction(formData: FormData) {
   }
 
   await prisma.categoriaBeneficiario.create({
-    data: { nome, descricao, limiteAnualDias, ordem },
+    data: { nome, descricao, limiteAnualDias, elegivelHospedagem, ordem },
   });
   revalidatePath("/admin/categorias");
 }
@@ -123,6 +124,7 @@ export async function atualizarCategoriaAction(categoriaId: string, formData: Fo
   const nome = String(formData.get("nome") ?? "").trim();
   const descricao = String(formData.get("descricao") ?? "").trim() || null;
   const limiteAnualDias = Number(formData.get("limiteAnualDias") ?? 60);
+  const elegivelHospedagem = formData.get("elegivelHospedagem") === "on";
   const ordem = Number(formData.get("ordem") ?? 0);
 
   if (!nome) throw new Error("Informe o nome da categoria.");
@@ -134,7 +136,7 @@ export async function atualizarCategoriaAction(categoriaId: string, formData: Fo
   try {
     await prisma.categoriaBeneficiario.update({
       where: { id: categoriaId },
-      data: { nome, descricao, limiteAnualDias, ordem },
+      data: { nome, descricao, limiteAnualDias, elegivelHospedagem, ordem },
     });
   } catch (e) {
     const mensagem = e instanceof Error ? e.message : "";
@@ -201,6 +203,88 @@ export async function excluirTipoDestinoAction(tipoDestinoId: string) {
   }
   await prisma.tipoDestino.delete({ where: { id: tipoDestinoId } });
   revalidatePath("/admin/tipos-destino");
+}
+
+// ---------------------------------------------------------------------------
+// Enquadramento de atividade (taxonomia acadêmica/administrativa)
+// ---------------------------------------------------------------------------
+
+export async function criarEnquadramentoAction(formData: FormData) {
+  await exigirAdmin();
+  const categoria = String(formData.get("categoria") ?? "") as "ACADEMICA" | "ADMINISTRATIVA";
+  const nome = String(formData.get("nome") ?? "").trim();
+  const descricao = String(formData.get("descricao") ?? "").trim() || null;
+  const exigeDetalhamento = formData.get("exigeDetalhamento") === "on";
+  const exigeAnexo = formData.get("exigeAnexo") === "on";
+  const ordem = Number(formData.get("ordem") ?? 0);
+
+  if (categoria !== "ACADEMICA" && categoria !== "ADMINISTRATIVA") {
+    throw new Error("Selecione a categoria (acadêmica ou administrativa).");
+  }
+  if (!nome) throw new Error("Informe o nome do enquadramento.");
+  if (!Number.isFinite(ordem)) throw new Error("Ordem de exibição inválida.");
+
+  try {
+    await prisma.enquadramentoAtividade.create({
+      data: { categoria, nome, descricao, exigeDetalhamento, exigeAnexo, ordem },
+    });
+  } catch (e) {
+    const mensagem = e instanceof Error ? e.message : "";
+    throw new Error(
+      mensagem.includes("Unique constraint")
+        ? "Já existe um enquadramento com este nome nesta categoria."
+        : mensagem,
+    );
+  }
+  revalidatePath("/admin/enquadramentos");
+}
+
+export async function atualizarEnquadramentoAction(enquadramentoId: string, formData: FormData) {
+  await exigirAdmin();
+  const categoria = String(formData.get("categoria") ?? "") as "ACADEMICA" | "ADMINISTRATIVA";
+  const nome = String(formData.get("nome") ?? "").trim();
+  const descricao = String(formData.get("descricao") ?? "").trim() || null;
+  const exigeDetalhamento = formData.get("exigeDetalhamento") === "on";
+  const exigeAnexo = formData.get("exigeAnexo") === "on";
+  const ativo = formData.get("ativo") === "on";
+  const ordem = Number(formData.get("ordem") ?? 0);
+
+  if (categoria !== "ACADEMICA" && categoria !== "ADMINISTRATIVA") {
+    throw new Error("Selecione a categoria (acadêmica ou administrativa).");
+  }
+  if (!nome) throw new Error("Informe o nome do enquadramento.");
+  if (!Number.isFinite(ordem)) throw new Error("Ordem de exibição inválida.");
+
+  try {
+    await prisma.enquadramentoAtividade.update({
+      where: { id: enquadramentoId },
+      data: { categoria, nome, descricao, exigeDetalhamento, exigeAnexo, ativo, ordem },
+    });
+  } catch (e) {
+    const mensagem = e instanceof Error ? e.message : "";
+    throw new Error(
+      mensagem.includes("Unique constraint")
+        ? "Já existe um enquadramento com este nome nesta categoria."
+        : mensagem,
+    );
+  }
+  revalidatePath("/admin/enquadramentos");
+}
+
+export async function excluirEnquadramentoAction(enquadramentoId: string) {
+  await exigirAdmin();
+  const emUso = await prisma.atividade.count({ where: { enquadramentoId } });
+  if (emUso > 0) {
+    // Regulamentação muda; nunca remova um enquadramento já usado por
+    // atividades existentes, só desative para não reaparecer em novos pedidos.
+    await prisma.enquadramentoAtividade.update({
+      where: { id: enquadramentoId },
+      data: { ativo: false },
+    });
+  } else {
+    await prisma.enquadramentoAtividade.delete({ where: { id: enquadramentoId } });
+  }
+  revalidatePath("/admin/enquadramentos");
 }
 
 // ---------------------------------------------------------------------------

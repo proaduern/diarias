@@ -141,11 +141,11 @@ export async function atualizarBeneficiarioAction(beneficiarioId: string, formDa
 export async function excluirBeneficiarioAction(beneficiarioId: string) {
   await exigirAdmin();
 
-  const pedidosVinculados = await prisma.pedidoDiaria.count({
+  const viagensVinculadas = await prisma.viagem.count({
     where: { beneficiarioId },
   });
 
-  if (pedidosVinculados > 0) {
+  if (viagensVinculadas > 0) {
     await prisma.beneficiario.update({
       where: { id: beneficiarioId },
       data: { ativo: false },
