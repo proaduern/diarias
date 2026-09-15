@@ -120,14 +120,28 @@ export async function criarCategoriaAction(formData: FormData) {
 
 export async function atualizarCategoriaAction(categoriaId: string, formData: FormData) {
   await exigirAdmin();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const descricao = String(formData.get("descricao") ?? "").trim() || null;
   const limiteAnualDias = Number(formData.get("limiteAnualDias") ?? 60);
+  const ordem = Number(formData.get("ordem") ?? 0);
+
+  if (!nome) throw new Error("Informe o nome da categoria.");
   if (!Number.isFinite(limiteAnualDias) || limiteAnualDias <= 0) {
     throw new Error("Limite anual de dias inválido.");
   }
-  await prisma.categoriaBeneficiario.update({
-    where: { id: categoriaId },
-    data: { limiteAnualDias },
-  });
+  if (!Number.isFinite(ordem)) throw new Error("Ordem de exibição inválida.");
+
+  try {
+    await prisma.categoriaBeneficiario.update({
+      where: { id: categoriaId },
+      data: { nome, descricao, limiteAnualDias, ordem },
+    });
+  } catch (e) {
+    const mensagem = e instanceof Error ? e.message : "";
+    throw new Error(
+      mensagem.includes("Unique constraint") ? "Já existe uma categoria com este nome." : mensagem,
+    );
+  }
   revalidatePath("/admin/categorias");
 }
 
@@ -153,6 +167,29 @@ export async function criarTipoDestinoAction(formData: FormData) {
   if (!nome) throw new Error("Informe o nome do tipo de destino.");
 
   await prisma.tipoDestino.create({ data: { nome, descricao, ordem } });
+  revalidatePath("/admin/tipos-destino");
+}
+
+export async function atualizarTipoDestinoAction(tipoDestinoId: string, formData: FormData) {
+  await exigirAdmin();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const descricao = String(formData.get("descricao") ?? "").trim() || null;
+  const ordem = Number(formData.get("ordem") ?? 0);
+
+  if (!nome) throw new Error("Informe o nome do tipo de destino.");
+  if (!Number.isFinite(ordem)) throw new Error("Ordem de exibição inválida.");
+
+  try {
+    await prisma.tipoDestino.update({
+      where: { id: tipoDestinoId },
+      data: { nome, descricao, ordem },
+    });
+  } catch (e) {
+    const mensagem = e instanceof Error ? e.message : "";
+    throw new Error(
+      mensagem.includes("Unique constraint") ? "Já existe um tipo de destino com este nome." : mensagem,
+    );
+  }
   revalidatePath("/admin/tipos-destino");
 }
 
