@@ -4,7 +4,14 @@ import { useActionState, useState } from "react";
 import { criarViagemComPedidosAction, type CriarViagemState } from "@/lib/actions/viagens";
 import AtividadesFormSection from "./AtividadesFormSection";
 import SedeDestinoAeroportoSection from "./SedeDestinoAeroportoSection";
-import type { Beneficiario, CategoriaBeneficiario, EnquadramentoAtividade, TipoDestino, Unidade } from "@prisma/client";
+import type {
+  Beneficiario,
+  CategoriaBeneficiario,
+  Contrato,
+  EnquadramentoAtividade,
+  TipoDestino,
+  Unidade,
+} from "@prisma/client";
 
 const initialState: CriarViagemState = {};
 
@@ -20,6 +27,8 @@ export default function NovoPedidoForm({
   ehAdmin,
   prazoMinimoDias,
   kmMinimo,
+  contratosHospedagem,
+  contratosPassagemAerea,
 }: {
   beneficiarios: BeneficiarioComCategoria[];
   tiposDestino: TipoDestino[];
@@ -28,9 +37,13 @@ export default function NovoPedidoForm({
   ehAdmin: boolean;
   prazoMinimoDias: number;
   kmMinimo: number;
+  contratosHospedagem: Contrato[];
+  contratosPassagemAerea: Contrato[];
 }) {
   const [state, formAction, pending] = useActionState(criarViagemComPedidosAction, initialState);
   const [beneficiarioId, setBeneficiarioId] = useState("");
+  const [querHospedagem, setQuerHospedagem] = useState(false);
+  const [querPassagemAerea, setQuerPassagemAerea] = useState(false);
 
   const beneficiarioSelecionado = beneficiarios.find((b) => b.id === beneficiarioId);
   const elegivelHospedagem = beneficiarioSelecionado?.categoria.elegivelHospedagem ?? false;
@@ -230,23 +243,88 @@ export default function NovoPedidoForm({
           Diária
         </label>
         {beneficiarioId && (
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" name="tipoHospedagem" disabled={!elegivelHospedagem} />
-            Hospedagem
-            {!elegivelHospedagem && (
-              <span className="text-xs text-slate-400">
-                (categoria do beneficiário não é elegível para hospedagem)
-              </span>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                name="tipoHospedagem"
+                disabled={!elegivelHospedagem}
+                checked={querHospedagem}
+                onChange={(e) => setQuerHospedagem(e.target.checked)}
+              />
+              Hospedagem
+              {!elegivelHospedagem && (
+                <span className="text-xs text-slate-400">
+                  (categoria do beneficiário não é elegível para hospedagem)
+                </span>
+              )}
+            </label>
+            {querHospedagem && (
+              <div className="mt-1 ml-6">
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Contrato de hospedagem
+                </label>
+                <select
+                  name="contratoHospedagemId"
+                  required
+                  className="w-full max-w-sm rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione...</option>
+                  {contratosHospedagem.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.empresaNome} — contrato {c.numeroContrato}
+                    </option>
+                  ))}
+                </select>
+                {contratosHospedagem.length === 0 && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Não há contrato de hospedagem vigente cadastrado. Peça ao administrador
+                    para cadastrar em Contratos.
+                  </p>
+                )}
+              </div>
             )}
-          </label>
+          </div>
         )}
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="tipoPassagemAerea" />
-          Passagem aérea
-          <span className="text-xs text-slate-400">
-            (valor preenchido manualmente pelo responsável após cotação externa)
-          </span>
-        </label>
+        <div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="tipoPassagemAerea"
+              checked={querPassagemAerea}
+              onChange={(e) => setQuerPassagemAerea(e.target.checked)}
+            />
+            Passagem aérea
+            <span className="text-xs text-slate-400">
+              (valor preenchido manualmente pelo responsável após cotação externa)
+            </span>
+          </label>
+          {querPassagemAerea && (
+            <div className="mt-1 ml-6">
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Contrato de passagem aérea
+              </label>
+              <select
+                name="contratoPassagemAereaId"
+                required
+                className="w-full max-w-sm rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="">Selecione...</option>
+                {contratosPassagemAerea.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.empresaNome} — contrato {c.numeroContrato}
+                  </option>
+                ))}
+              </select>
+              {contratosPassagemAerea.length === 0 && (
+                <p className="mt-1 text-xs text-red-600">
+                  Não há contrato de passagem aérea vigente cadastrado. Peça ao administrador
+                  para cadastrar em Contratos.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {state.erro && (
