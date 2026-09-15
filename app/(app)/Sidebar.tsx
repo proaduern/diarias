@@ -70,10 +70,10 @@ export default function Sidebar({
       <div className="m-3 space-y-1 rounded-2xl border border-slate-800 bg-slate-800/50 p-4 text-[11px] text-slate-400">
         <div className="flex items-center space-x-1.5 font-semibold text-slate-200">
           <Building2 className="h-3.5 w-3.5 text-blue-400" />
-          <span>FUERN</span>
+          <span>UERN</span>
         </div>
         <p className="text-[10px] leading-snug text-slate-400">
-          {perfil === "ADMIN" ? "Administrador do sistema" : "Sistema de Diárias"}
+          {perfil === "ADMIN" ? "Administrador do sistema" : "Sistema de Diárias, Passagens e Hospedagens"}
         </p>
       </div>
     </aside>
