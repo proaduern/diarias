@@ -260,6 +260,38 @@ export async function criarViagemComPedidosAction(
     };
   }
 
+  // --- Contrato (obrigatório para hospedagem e passagem aérea) ---
+  const contratoHospedagemId = querHospedagem ? String(formData.get("contratoHospedagemId") ?? "") : null;
+  const contratoPassagemAereaId = querPassagemAerea
+    ? String(formData.get("contratoPassagemAereaId") ?? "")
+    : null;
+
+  async function validarContrato(contratoId: string, tipo: "HOSPEDAGEM" | "PASSAGEM_AEREA", rotulo: string) {
+    if (!contratoId) {
+      return `Selecione o contrato que vai custear a ${rotulo}.`;
+    }
+    const contrato = await prisma.contrato.findUnique({ where: { id: contratoId } });
+    if (!contrato || contrato.tipoBeneficio !== tipo) {
+      return `Contrato de ${rotulo} inválido.`;
+    }
+    if (!contrato.ativo) {
+      return `O contrato selecionado para ${rotulo} não está mais ativo.`;
+    }
+    if (saidaSede! < contrato.vigenciaInicio || saidaSede! > contrato.vigenciaFim) {
+      return `O contrato selecionado para ${rotulo} não está vigente na data da viagem.`;
+    }
+    return null;
+  }
+
+  if (querHospedagem) {
+    const erroContrato = await validarContrato(contratoHospedagemId!, "HOSPEDAGEM", "hospedagem");
+    if (erroContrato) return { erro: erroContrato };
+  }
+  if (querPassagemAerea) {
+    const erroContrato = await validarContrato(contratoPassagemAereaId!, "PASSAGEM_AEREA", "passagem aérea");
+    if (erroContrato) return { erro: erroContrato };
+  }
+
   // --- Prestação de contas: pendências bloqueantes de pedidos anteriores (qualquer tipo) ---
   const pendenciaWhere = {
     viagem: { beneficiarioId: beneficiario.id },
@@ -433,6 +465,7 @@ export async function criarViagemComPedidosAction(
       await tx.pedidoHospedagem.create({
         data: {
           viagemId: viagemCriada.id,
+          contratoId: contratoHospedagemId!,
           status: statusHospedagem,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,
@@ -446,6 +479,7 @@ export async function criarViagemComPedidosAction(
       await tx.pedidoPassagemAerea.create({
         data: {
           viagemId: viagemCriada.id,
+          contratoId: contratoPassagemAereaId!,
           status: statusPassagem,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,

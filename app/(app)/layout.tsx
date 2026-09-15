@@ -25,6 +25,7 @@ export default async function AppLayout({
     { href: "/admin/categorias", label: "Categorias" },
     { href: "/admin/tipos-destino", label: "Tipos de destino" },
     { href: "/admin/enquadramentos", label: "Enquadramento de atividades" },
+    { href: "/admin/contratos", label: "Contratos" },
     { href: "/admin/valores", label: "Valores de diária" },
     { href: "/admin/configuracoes", label: "Configurações" },
   ];

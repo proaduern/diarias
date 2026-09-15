@@ -28,6 +28,7 @@ model Unidade {
   beneficiarios Beneficiario[]
   viagens       Viagem[]
   orcamentos    OrcamentoUnidade[]
+  cotasContrato CotaContratoUnidade[]
 }
 
 model Usuario {
@@ -314,6 +315,9 @@ model PedidoHospedagem {
   viagemId String
   viagem   Viagem @relation(fields: [viagemId], references: [id])
 
+  contratoId String
+  contrato   Contrato @relation(fields: [contratoId], references: [id])
+
   status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
 
   // Cotação feita fora do sistema (hotel, diária de hospedagem etc.) e
@@ -353,6 +357,9 @@ model PedidoPassagemAerea {
 
   viagemId String
   viagem   Viagem @relation(fields: [viagemId], references: [id])
+
+  contratoId String
+  contrato   Contrato @relation(fields: [contratoId], references: [id])
 
   status StatusPedido @default(AGUARDANDO_DEFERIMENTO)
 
@@ -416,6 +423,70 @@ model Aprovacao {
   decisao               String
   motivo                String?
   createdAt             DateTime             @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Contratos e controle de saldo (hospedagem, passagem aérea, passagem
+// terrestre — este último ainda sem tipo de pedido próprio, mas o
+// cadastro do contrato já fica disponível para quando o contrato existir).
+// ---------------------------------------------------------------------------
+
+enum TipoBeneficioContrato {
+  HOSPEDAGEM
+  PASSAGEM_AEREA
+  PASSAGEM_TERRESTRE
+}
+
+// Pré-cadastro de contrato, feito pelo admin (ou alguém por ele designado).
+// Todos os campos são editáveis pois contratos recebem aditivos de valor/
+// duração, ou trocam de empresa por completo em rescisão/não-renovação.
+model Contrato {
+  id String @id @default(cuid())
+
+  tipoBeneficio TipoBeneficioContrato
+
+  empresaNome       String
+  empresaCnpj       String
+  numeroContrato    String
+  numeroProcessoSei String
+
+  vigenciaInicio DateTime
+  vigenciaFim    DateTime
+
+  // Saldo global do contrato (Art. da cota/saldo) — a soma dos pedidos
+  // vinculados a este contrato nunca pode ultrapassar este valor (ver
+  // lib/saldo-contrato.ts).
+  valorTotalCentavos Int
+
+  ativo Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cotasPorUnidade      CotaContratoUnidade[]
+  pedidosHospedagem    PedidoHospedagem[]
+  pedidosPassagemAerea PedidoPassagemAerea[]
+
+  @@index([tipoBeneficio])
+}
+
+// Cota de uma unidade dentro de um contrato. cotaCentavos = 0 significa que
+// a unidade não tem teto próprio e usa o saldo global do contrato (editável
+// pelo admin).
+model CotaContratoUnidade {
+  id String @id @default(cuid())
+
+  contratoId String
+  contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  unidadeId  String
+  unidade    Unidade  @relation(fields: [unidadeId], references: [id])
+
+  cotaCentavos Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([contratoId, unidadeId])
 }
 
 model OrcamentoUnidade {

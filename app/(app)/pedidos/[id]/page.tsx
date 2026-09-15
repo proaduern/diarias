@@ -57,12 +57,14 @@ export default async function ViagemDetalhePage({
         },
         pedidosHospedagem: {
           include: {
+            contrato: true,
             anexos: true,
             aprovacoes: { include: { aprovador: true }, orderBy: { createdAt: "desc" } },
           },
         },
         pedidosPassagemAerea: {
           include: {
+            contrato: true,
             anexos: true,
             aprovacoes: { include: { aprovador: true }, orderBy: { createdAt: "desc" } },
           },
@@ -224,14 +226,20 @@ export default async function ViagemDetalhePage({
             )}
 
             {(tipo === "HOSPEDAGEM" || tipo === "PASSAGEM_AEREA") && "valorCotadoEm" in pedido && (
-              <Campo
-                label="Valor cotado (fora do sistema)"
-                valor={
-                  pedido.valorTotalCentavos != null
-                    ? `${formatarMoeda(pedido.valorTotalCentavos, "BRL")} — em ${formatarDataHora(pedido.valorCotadoEm!)}`
-                    : "Ainda não informado"
-                }
-              />
+              <>
+                <Campo
+                  label="Contrato"
+                  valor={`${pedido.contrato.empresaNome} — contrato ${pedido.contrato.numeroContrato}`}
+                />
+                <Campo
+                  label="Valor cotado (fora do sistema)"
+                  valor={
+                    pedido.valorTotalCentavos != null
+                      ? `${formatarMoeda(pedido.valorTotalCentavos, "BRL")} — em ${formatarDataHora(pedido.valorCotadoEm!)}`
+                      : "Ainda não informado"
+                  }
+                />
+              </>
             )}
 
             {pedido.justificativaPrazoCurto && (

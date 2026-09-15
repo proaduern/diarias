@@ -5,7 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { exigirAdmin, exigirSessao } from "@/lib/auth";
 import { avaliarLimites } from "@/lib/limites";
 import { avaliarHorarioAtividade } from "@/lib/atividades";
+import { avaliarSaldoContrato } from "@/lib/saldo-contrato";
 import { lerArquivoEnviado } from "@/lib/storage";
+import { formatarMoeda } from "@/lib/formato";
 import type { StatusPedido } from "@prisma/client";
 
 export type TipoPedido = "DIARIA" | "HOSPEDAGEM" | "PASSAGEM_AEREA";
@@ -91,10 +93,55 @@ export async function definirValorCotadoAction(tipo: TipoPedido, pedidoId: strin
   if (!Number.isFinite(valorReais) || valorReais <= 0) {
     throw new Error("Informe um valor válido, maior que zero.");
   }
+  const novoValorCentavos = Math.round(valorReais * 100);
 
   const pedido = await buscarPedido(tipo, pedidoId);
+  const contratoId = (pedido as { contratoId: string }).contratoId;
+  const unidadeId = pedido.viagem.unidadeSolicitanteId;
+
+  const contrato = await prisma.contrato.findUniqueOrThrow({ where: { id: contratoId } });
+
+  const whereConsumidoContrato = { contratoId, status: { not: "INDEFERIDO" as const }, id: { not: pedidoId } };
+  const whereConsumidoUnidade = { ...whereConsumidoContrato, viagem: { unidadeSolicitanteId: unidadeId } };
+
+  const [consumidoContrato, consumidoUnidade, cota] = await Promise.all([
+    Promise.all([
+      prisma.pedidoHospedagem.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
+      prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
+    ]),
+    Promise.all([
+      prisma.pedidoHospedagem.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
+      prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
+    ]),
+    prisma.cotaContratoUnidade.findUnique({ where: { contratoId_unidadeId: { contratoId, unidadeId } } }),
+  ]);
+
+  const consumidoContratoCentavos =
+    (consumidoContrato[0]._sum.valorTotalCentavos ?? 0) + (consumidoContrato[1]._sum.valorTotalCentavos ?? 0);
+  const consumidoUnidadeCentavos =
+    (consumidoUnidade[0]._sum.valorTotalCentavos ?? 0) + (consumidoUnidade[1]._sum.valorTotalCentavos ?? 0);
+
+  const situacaoSaldo = avaliarSaldoContrato({
+    novoValorCentavos,
+    valorTotalContratoCentavos: contrato.valorTotalCentavos,
+    consumidoContratoCentavos,
+    cotaUnidadeCentavos: cota?.cotaCentavos ?? 0,
+    consumidoUnidadeCentavos,
+  });
+
+  if (situacaoSaldo.situacao === "EXCEDE_COTA_UNIDADE") {
+    throw new Error(
+      `Este valor excede a cota da unidade neste contrato (disponível: ${formatarMoeda(situacaoSaldo.cotaUnidadeDisponivel, "BRL")}).`,
+    );
+  }
+  if (situacaoSaldo.situacao === "EXCEDE_SALDO_CONTRATO") {
+    throw new Error(
+      `Este valor excede o saldo disponível do contrato (disponível: ${formatarMoeda(situacaoSaldo.saldoContratoDisponivel, "BRL")}).`,
+    );
+  }
+
   await atualizarCampos(tipo, pedidoId, {
-    valorTotalCentavos: Math.round(valorReais * 100),
+    valorTotalCentavos: novoValorCentavos,
     valorCotadoPor: sessao.userId,
     valorCotadoEm: new Date(),
   });
