@@ -20,6 +20,8 @@ export interface SessionPayload {
   nome: string;
   perfil: PerfilUsuario;
   unidadeId: string | null;
+  podeImportarUsuarios: boolean;
+  podeEditarBeneficiarios: boolean;
 }
 
 export async function criarSessao(payload: SessionPayload) {
@@ -56,6 +58,8 @@ export async function obterSessao(): Promise<SessionPayload | null> {
       nome: payload.nome as string,
       perfil: payload.perfil as PerfilUsuario,
       unidadeId: (payload.unidadeId as string | null) ?? null,
+      podeImportarUsuarios: (payload.podeImportarUsuarios as boolean | undefined) ?? false,
+      podeEditarBeneficiarios: (payload.podeEditarBeneficiarios as boolean | undefined) ?? false,
     };
   } catch {
     return null;
@@ -101,6 +105,8 @@ export async function autenticar(
     nome: usuario.nome,
     perfil: usuario.perfil,
     unidadeId: usuario.unidadeId,
+    podeImportarUsuarios: usuario.podeImportarUsuarios,
+    podeEditarBeneficiarios: usuario.podeEditarBeneficiarios,
   };
 }
 

@@ -53,7 +53,7 @@ export default function ValorForm({
       <select
         name="moeda"
         defaultValue={moedaAtual}
-        className="rounded-md border border-slate-300 px-1 py-1 text-xs"
+        className="rounded-xl border border-slate-300 px-1 py-1 text-xs"
       >
         <option value="BRL">R$</option>
         <option value="USD">US$</option>
@@ -65,12 +65,12 @@ export default function ValorForm({
         min={0}
         required
         defaultValue={valorAtual ?? undefined}
-        className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs"
+        className="w-20 rounded-xl border border-slate-300 px-2 py-1 text-xs"
       />
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-slate-900 px-2 py-1 text-xs text-white disabled:opacity-60"
+        className="rounded-lg bg-[#003366] px-2 py-1 text-xs text-white hover:bg-[#002244] disabled:opacity-60"
       >
         OK
       </button>

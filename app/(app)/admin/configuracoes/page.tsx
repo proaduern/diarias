@@ -21,7 +21,7 @@ export default async function ConfiguracoesPage() {
 
       <ConfiguracaoForm config={config} />
 
-      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
         <h2 className="text-sm font-semibold text-slate-900">
           Orçamento por unidade (opcional — apenas acompanhamento, não trava
           pedidos)

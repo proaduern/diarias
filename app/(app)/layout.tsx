@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { obterSessao } from "@/lib/auth";
-import { logoutAction } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
+import Sidebar from "./Sidebar";
+import Navbar from "./Navbar";
 
 export default async function AppLayout({
   children,
@@ -28,44 +28,20 @@ export default async function AppLayout({
     { href: "/admin/configuracoes", label: "Configurações" },
   ];
 
+  const links =
+    sessao.perfil === "ADMIN"
+      ? [...linksBase, ...linksAdmin]
+      : sessao.podeImportarUsuarios
+        ? [...linksBase, { href: "/importar-usuarios", label: "Importar usuários" }]
+        : linksBase;
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-semibold text-slate-900">
-              Diárias FUERN
-            </span>
-            <nav className="flex flex-wrap gap-3 text-sm text-slate-600">
-              {linksBase.map((l) => (
-                <Link key={l.href} href={l.href} className="hover:text-slate-900">
-                  {l.label}
-                </Link>
-              ))}
-              {sessao.perfil === "ADMIN" &&
-                linksAdmin.map((l) => (
-                  <Link key={l.href} href={l.href} className="hover:text-slate-900">
-                    {l.label}
-                  </Link>
-                ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span>
-              {sessao.nome} ·{" "}
-              {sessao.perfil === "ADMIN" ? "Administrador" : "Demandante"}
-            </span>
-            <form action={logoutAction}>
-              <button className="rounded-md border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">
-                Sair
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        {children}
-      </main>
+    <div className="min-h-screen bg-slate-50">
+      <Navbar nome={sessao.nome} perfil={sessao.perfil} />
+      <div className="flex">
+        <Sidebar links={links} perfil={sessao.perfil} />
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
+      </div>
     </div>
   );
 }

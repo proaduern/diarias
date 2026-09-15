@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { criarTipoDestinoAction, excluirTipoDestinoAction } from "@/lib/actions/admin";
 import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
+import EditarTipoDestinoForm from "./EditarTipoDestinoForm";
 
 export default async function TiposDestinoPage() {
   const tipos = await prisma.tipoDestino.findMany({ orderBy: { ordem: "asc" } });
@@ -25,7 +26,7 @@ export default async function TiposDestinoPage() {
         ]}
       />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
@@ -39,7 +40,10 @@ export default async function TiposDestinoPage() {
               <tr key={t.id}>
                 <td className="px-4 py-2 text-slate-900">{t.nome}</td>
                 <td className="px-4 py-2 text-slate-600">{t.descricao ?? "-"}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 space-y-1">
+                  <EditarTipoDestinoForm
+                    tipo={{ id: t.id, nome: t.nome, descricao: t.descricao, ordem: t.ordem }}
+                  />
                   <BotaoExcluir action={excluirTipoDestinoAction} id={t.id} />
                 </td>
               </tr>

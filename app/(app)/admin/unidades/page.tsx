@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { criarUnidadeAction, excluirUnidadeAction } from "@/lib/actions/admin";
+import { importarUnidadesAction } from "@/lib/actions/importacao";
 import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
+import ImportarPlanilhaForm from "../ImportarPlanilhaForm";
 
 export default async function UnidadesPage() {
   const unidades = await prisma.unidade.findMany({ orderBy: { nome: "asc" } });
@@ -19,7 +21,14 @@ export default async function UnidadesPage() {
         ]}
       />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <ImportarPlanilhaForm
+        action={importarUnidadesAction}
+        titulo="Importar unidades em lote (planilha)"
+        colunas={["nome", "email"]}
+        modeloHref="/modelos/unidades.xlsx"
+      />
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>

@@ -58,7 +58,7 @@ export default function ConfiguracaoForm({ config }: { config: ConfiguracaoSiste
           }
         });
       }}
-      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm p-4"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {campos.map((c) => (
@@ -72,17 +72,17 @@ export default function ConfiguracaoForm({ config }: { config: ConfiguracaoSiste
               min={0}
               required
               defaultValue={c.defaultValue}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
         ))}
       </div>
 
       {erro && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
       )}
       {sucesso && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
           Configuração atualizada.
         </p>
       )}
@@ -90,7 +90,7 @@ export default function ConfiguracaoForm({ config }: { config: ConfiguracaoSiste
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         {isPending ? "Salvando..." : "Salvar"}
       </button>

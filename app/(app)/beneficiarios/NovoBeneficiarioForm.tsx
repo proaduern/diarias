@@ -27,7 +27,7 @@ export default function NovoBeneficiarioForm({
     return (
       <button
         onClick={() => setAberto(true)}
-        className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244]"
       >
         Cadastrar beneficiário
       </button>
@@ -37,7 +37,7 @@ export default function NovoBeneficiarioForm({
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      className="space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm p-4"
     >
       <h2 className="text-sm font-semibold text-slate-900">Novo beneficiário</h2>
 
@@ -49,7 +49,7 @@ export default function NovoBeneficiarioForm({
           <input
             name="nome"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -60,7 +60,7 @@ export default function NovoBeneficiarioForm({
             name="cpf"
             required
             placeholder="000.000.000-00"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -70,7 +70,7 @@ export default function NovoBeneficiarioForm({
           <input
             name="banco"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -80,7 +80,7 @@ export default function NovoBeneficiarioForm({
           <input
             name="agencia"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -90,7 +90,7 @@ export default function NovoBeneficiarioForm({
           <input
             name="contaCorrente"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -100,7 +100,7 @@ export default function NovoBeneficiarioForm({
           <select
             name="categoriaId"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="">Selecione...</option>
             {categorias.map((c) => (
@@ -122,7 +122,7 @@ export default function NovoBeneficiarioForm({
           {!semVinculo && (
             <select
               name="unidadeVinculoId"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="">Selecione a unidade de vínculo...</option>
               {unidades.map((u) => (
@@ -136,12 +136,12 @@ export default function NovoBeneficiarioForm({
       </div>
 
       {state.erro && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.erro}
         </p>
       )}
       {state.sucesso && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+        <p className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-700">
           Beneficiário cadastrado com sucesso.
         </p>
       )}
@@ -150,14 +150,14 @@ export default function NovoBeneficiarioForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+          className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
         >
           {pending ? "Salvando..." : "Salvar"}
         </button>
         <button
           type="button"
           onClick={() => setAberto(false)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+          className="rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
         >
           Cancelar
         </button>

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { criarCategoriaAction, excluirCategoriaAction } from "@/lib/actions/admin";
 import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
+import EditarCategoriaForm from "./EditarCategoriaForm";
 
 export default async function CategoriasPage() {
   const categorias = await prisma.categoriaBeneficiario.findMany({
@@ -31,7 +32,7 @@ export default async function CategoriasPage() {
         ]}
       />
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
@@ -47,7 +48,16 @@ export default async function CategoriasPage() {
                 <td className="px-4 py-2 text-slate-900">{c.nome}</td>
                 <td className="px-4 py-2 text-slate-600">{c.descricao ?? "-"}</td>
                 <td className="px-4 py-2 text-slate-600">{c.limiteAnualDias}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 space-y-1">
+                  <EditarCategoriaForm
+                    categoria={{
+                      id: c.id,
+                      nome: c.nome,
+                      descricao: c.descricao,
+                      limiteAnualDias: c.limiteAnualDias,
+                      ordem: c.ordem,
+                    }}
+                  />
                   <BotaoExcluir action={excluirCategoriaAction} id={c.id} />
                 </td>
               </tr>
