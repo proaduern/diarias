@@ -204,6 +204,25 @@ model PedidoDiaria {
   finalidade       String
   kmDeclarado      Int
 
+  // Sede/destino (Fase 2): cidade do destino já é `municipioDestino` acima;
+  // os demais campos de lugar não existiam antes e são necessários para o
+  // futuro cálculo de passagem aérea/terrestre.
+  sedeCidade    String @default("")
+  sedeEstado    String @default("")
+  destinoEstado String @default("")
+
+  // Trecho aéreo opcional (Fase 2): quando o beneficiário for buscado no
+  // aeroporto, a viagem tem 3 trechos — terrestre sede->aeroporto, aéreo
+  // aeroporto->aeroporto, terrestre aeroporto->destino — cada um com sua
+  // própria fórmula de tempo (ver lib/tempo-viagem.ts). kmDeclarado acima
+  // continua sendo a distância terrestre direta sede-destino, usada no
+  // Art. 17, I (pernoite) independentemente de haver trecho aéreo.
+  vaiBuscarAeroporto    Boolean @default(false)
+  kmSedeAeroporto       Int?
+  kmVoo                 Int?
+  kmAeroportoDestino    Int?
+  tempoViagemEstimadoMinutos Int?
+
   saidaSede       DateTime
   chegadaDestino  DateTime
   saidaDestino    DateTime

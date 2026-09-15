@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { criarPedidoAction, type CriarPedidoState } from "@/lib/actions/pedidos";
 import AtividadesFormSection from "./AtividadesFormSection";
+import SedeDestinoAeroportoSection from "./SedeDestinoAeroportoSection";
 import type { Beneficiario, EnquadramentoAtividade, TipoDestino, Unidade } from "@prisma/client";
 
 const initialState: CriarPedidoState = {};
@@ -109,6 +110,8 @@ export default function NovoPedidoForm({
           </select>
         </div>
       </div>
+
+      <SedeDestinoAeroportoSection />
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-700">

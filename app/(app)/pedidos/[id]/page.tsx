@@ -90,10 +90,28 @@ export default async function PedidoDetalhePage({
         <Campo label="CPF" valor={formatarCpf(pedido.beneficiario.cpf)} />
         <Campo label="Categoria" valor={pedido.beneficiario.categoria.nome} />
         <Campo label="Unidade solicitante" valor={pedido.unidadeSolicitante.nome} />
-        <Campo label="Município de destino" valor={pedido.municipioDestino} />
+        <Campo label="Sede" valor={`${pedido.sedeCidade}/${pedido.sedeEstado}`} />
+        <Campo
+          label="Município de destino"
+          valor={`${pedido.municipioDestino}/${pedido.destinoEstado}`}
+        />
         <Campo label="Tipo de destino" valor={pedido.tipoDestino.nome} />
         <Campo label="Finalidade" valor={pedido.finalidade} />
         <Campo label="Distância declarada" valor={`${pedido.kmDeclarado} km`} />
+        {pedido.vaiBuscarAeroporto && (
+          <div className="sm:col-span-2 rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-medium text-slate-500">Trecho aéreo</p>
+            <p className="text-sm text-slate-900">
+              Sede–aeroporto: {pedido.kmSedeAeroporto} km · Voo: {pedido.kmVoo} km ·
+              Aeroporto–destino: {pedido.kmAeroportoDestino} km
+            </p>
+            {pedido.tempoViagemEstimadoMinutos != null && (
+              <p className="text-xs text-slate-500">
+                Tempo total estimado: {Math.round(pedido.tempoViagemEstimadoMinutos)} min
+              </p>
+            )}
+          </div>
+        )}
         <Campo label="Saída da sede" valor={formatarDataHora(pedido.saidaSede)} />
         <Campo label="Chegada ao destino" valor={formatarDataHora(pedido.chegadaDestino)} />
         <Campo label="Saída do destino" valor={formatarDataHora(pedido.saidaDestino)} />

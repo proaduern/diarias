@@ -8,6 +8,7 @@ import { calcularDiarias } from "@/lib/diaria-calculo";
 import { avaliarPrazo } from "@/lib/prazo";
 import { avaliarLimites } from "@/lib/limites";
 import { avaliarHorarioAtividade } from "@/lib/atividades";
+import { calcularTempoViagemAeroporto } from "@/lib/tempo-viagem";
 import { avaliarPrestacaoContas, temPendenciaBloqueante } from "@/lib/prestacao-contas";
 import { lerArquivoEnviado } from "@/lib/storage";
 import type { StatusPedido } from "@prisma/client";
@@ -88,6 +89,18 @@ export async function criarPedidoAction(
     String(formData.get("justificativaPrazoCurto") ?? "").trim() || null;
   const cienciaPrazoAtividade = formData.get("cienciaPrazoAtividade") === "on";
 
+  const sedeCidade = String(formData.get("sedeCidade") ?? "").trim();
+  const sedeEstado = String(formData.get("sedeEstado") ?? "").trim().toUpperCase();
+  const destinoEstado = String(formData.get("destinoEstado") ?? "").trim().toUpperCase();
+  const vaiBuscarAeroporto = formData.get("vaiBuscarAeroporto") === "on";
+  const kmSedeAeroporto = vaiBuscarAeroporto
+    ? Number(formData.get("kmSedeAeroporto") ?? "")
+    : null;
+  const kmVoo = vaiBuscarAeroporto ? Number(formData.get("kmVoo") ?? "") : null;
+  const kmAeroportoDestino = vaiBuscarAeroporto
+    ? Number(formData.get("kmAeroportoDestino") ?? "")
+    : null;
+
   const unidadeSolicitanteId =
     sessao.perfil === "ADMIN"
       ? String(formData.get("unidadeSolicitanteId") ?? "")
@@ -109,7 +122,10 @@ export async function criarPedidoAction(
     !saidaSede ||
     !chegadaDestino ||
     !saidaDestino ||
-    !chegadaSede
+    !chegadaSede ||
+    !sedeCidade ||
+    !sedeEstado ||
+    !destinoEstado
   ) {
     return { erro: "Preencha todos os campos obrigatórios corretamente." };
   }
@@ -123,6 +139,40 @@ export async function criarPedidoAction(
       erro:
         "As datas/horas precisam seguir a ordem: saída da sede ≤ chegada ao destino ≤ saída do destino ≤ chegada à sede.",
     };
+  }
+
+  // --- Sede/destino/aeroporto (Fase 2) ---
+  let tempoViagemEstimadoMinutos: number | null = null;
+  if (vaiBuscarAeroporto) {
+    if (
+      kmSedeAeroporto === null ||
+      kmVoo === null ||
+      kmAeroportoDestino === null ||
+      !Number.isFinite(kmSedeAeroporto) ||
+      !Number.isFinite(kmVoo) ||
+      !Number.isFinite(kmAeroportoDestino) ||
+      kmSedeAeroporto < 0 ||
+      kmVoo < 0 ||
+      kmAeroportoDestino < 0
+    ) {
+      return {
+        erro:
+          "Informe as três distâncias (sede–aeroporto, voo e aeroporto–destino) para calcular o tempo de viagem.",
+      };
+    }
+
+    const situacaoViagem = calcularTempoViagemAeroporto({
+      kmSedeAeroporto,
+      kmVoo,
+      kmAeroportoDestino,
+    });
+    if (situacaoViagem.situacao === "BLOQUEADO_VOO_DISTANCIA_MINIMA") {
+      return {
+        erro:
+          "Voos com menos de 500 km não são permitidos — esse trecho deve ser feito por deslocamento terrestre.",
+      };
+    }
+    tempoViagemEstimadoMinutos = situacaoViagem.minutosTotais;
   }
 
   // --- Programação de atividades e horário crítica ---
@@ -315,6 +365,14 @@ export async function criarPedidoAction(
         municipioDestino,
         finalidade,
         kmDeclarado,
+        sedeCidade,
+        sedeEstado,
+        destinoEstado,
+        vaiBuscarAeroporto,
+        kmSedeAeroporto,
+        kmVoo,
+        kmAeroportoDestino,
+        tempoViagemEstimadoMinutos,
         saidaSede,
         chegadaDestino,
         saidaDestino,
