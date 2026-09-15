@@ -17,13 +17,13 @@ export default function LoginPage() {
             D
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-wide md:text-lg">FUERN</h1>
-            <p className="text-xs text-blue-200">Fundação Universidade do Estado do Rio Grande do Norte</p>
+            <h1 className="text-base font-bold tracking-wide md:text-lg">UERN</h1>
+            <p className="text-xs text-blue-200">Universidade do Estado do Rio Grande do Norte</p>
           </div>
         </div>
         <div className="hidden items-center space-x-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs text-blue-200 backdrop-blur-sm sm:flex">
           <ShieldCheck className="h-4 w-4 text-emerald-400" />
-          <span>Sistema de Diárias</span>
+          <span>Sistema de Diárias, Passagens e Hospedagens</span>
         </div>
       </header>
 
@@ -33,9 +33,9 @@ export default function LoginPage() {
             <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-[#003366] shadow-inner">
               <BookOpen className="h-7 w-7 text-[#0055A5]" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800">Sistema de Diárias</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Sistema de Diárias, Passagens e Hospedagens</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Fundação Universidade do Estado do Rio Grande do Norte
+              Universidade do Estado do Rio Grande do Norte
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
       </main>
 
       <footer className="mx-auto w-full max-w-6xl py-4 text-center text-xs text-blue-200/70">
-        <p>Fundação Universidade do Estado do Rio Grande do Norte - FUERN</p>
+        <p>Universidade do Estado do Rio Grande do Norte - UERN</p>
       </footer>
     </div>
   );

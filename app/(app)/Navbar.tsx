@@ -17,10 +17,10 @@ export default function Navbar({ nome, perfil }: { nome: string; perfil: PerfilU
         </div>
         <div>
           <span className="block text-sm font-bold leading-tight text-slate-800 md:text-base">
-            Sistema de Diárias
+            Sistema de Diárias, Passagens e Hospedagens
           </span>
           <span className="block text-[10px] font-medium uppercase tracking-wide text-slate-400">
-            Fundação Universidade do Estado do Rio Grande do Norte
+            Universidade do Estado do Rio Grande do Norte
           </span>
         </div>
       </div>
