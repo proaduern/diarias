@@ -12,6 +12,7 @@ import {
   MapPin,
   BarChart3,
   Settings,
+  UploadCloud,
 } from "lucide-react";
 import type { PerfilUsuario } from "@prisma/client";
 
@@ -25,6 +26,7 @@ const ICONE_POR_HREF: Record<string, typeof LayoutDashboard> = {
   "/admin/tipos-destino": MapPin,
   "/admin/valores": BarChart3,
   "/admin/configuracoes": Settings,
+  "/importar-usuarios": UploadCloud,
 };
 
 export default function Sidebar({

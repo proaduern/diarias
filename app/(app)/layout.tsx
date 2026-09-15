@@ -28,7 +28,12 @@ export default async function AppLayout({
     { href: "/admin/configuracoes", label: "Configurações" },
   ];
 
-  const links = sessao.perfil === "ADMIN" ? [...linksBase, ...linksAdmin] : linksBase;
+  const links =
+    sessao.perfil === "ADMIN"
+      ? [...linksBase, ...linksAdmin]
+      : sessao.podeImportarUsuarios
+        ? [...linksBase, { href: "/importar-usuarios", label: "Importar usuários" }]
+        : linksBase;
 
   return (
     <div className="min-h-screen bg-slate-50">

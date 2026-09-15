@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { criarUsuarioAction, excluirUsuarioAction } from "@/lib/actions/admin";
+import { importarUsuariosAction } from "@/lib/actions/importacao";
 import { formatarCpf } from "@/lib/formato";
 import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
+import ImportarPlanilhaForm from "../ImportarPlanilhaForm";
+import PermissoesUsuario from "./PermissoesUsuario";
 
 export default async function UsuariosPage() {
   const [usuarios, unidades] = await Promise.all([
@@ -42,6 +45,13 @@ export default async function UsuariosPage() {
         ]}
       />
 
+      <ImportarPlanilhaForm
+        action={importarUsuariosAction}
+        titulo="Importar usuários em lote (planilha)"
+        colunas={["nome", "email", "cpf", "senhaInicial", "perfil (ADMIN/DEMANDANTE)", "unidadeNome (para demandante)"]}
+        modeloHref="/modelos/usuarios.xlsx"
+      />
+
       <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-slate-500">
@@ -51,6 +61,7 @@ export default async function UsuariosPage() {
               <th className="px-4 py-2 font-medium">CPF</th>
               <th className="px-4 py-2 font-medium">Perfil</th>
               <th className="px-4 py-2 font-medium">Unidade</th>
+              <th className="px-4 py-2 font-medium">Permissões delegadas</th>
               <th className="px-4 py-2 font-medium">Ações</th>
             </tr>
           </thead>
@@ -62,6 +73,17 @@ export default async function UsuariosPage() {
                 <td className="px-4 py-2 text-slate-600">{formatarCpf(u.cpf)}</td>
                 <td className="px-4 py-2 text-slate-600">{u.perfil}</td>
                 <td className="px-4 py-2 text-slate-600">{u.unidade?.nome ?? "-"}</td>
+                <td className="px-4 py-2">
+                  {u.perfil === "DEMANDANTE" && u.unidadeId ? (
+                    <PermissoesUsuario
+                      usuarioId={u.id}
+                      podeImportarUsuarios={u.podeImportarUsuarios}
+                      podeEditarBeneficiarios={u.podeEditarBeneficiarios}
+                    />
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   <BotaoExcluir action={excluirUsuarioAction} id={u.id} />
                 </td>

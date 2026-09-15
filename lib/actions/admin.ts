@@ -79,6 +79,23 @@ export async function excluirUsuarioAction(usuarioId: string) {
   revalidatePath("/admin/usuarios");
 }
 
+/**
+ * Permissões que o admin delega a um demandante especifico, sempre restritas
+ * à própria unidade de vínculo dele (a action de importação/edição em si é
+ * quem garante esse escopo — aqui só liga/desliga a permissão).
+ */
+export async function alterarPermissaoImportarUsuariosAction(usuarioId: string, ligado: boolean) {
+  await exigirAdmin();
+  await prisma.usuario.update({ where: { id: usuarioId }, data: { podeImportarUsuarios: ligado } });
+  revalidatePath("/admin/usuarios");
+}
+
+export async function alterarPermissaoEditarBeneficiariosAction(usuarioId: string, ligado: boolean) {
+  await exigirAdmin();
+  await prisma.usuario.update({ where: { id: usuarioId }, data: { podeEditarBeneficiarios: ligado } });
+  revalidatePath("/admin/usuarios");
+}
+
 // ---------------------------------------------------------------------------
 // Categorias de beneficiário
 // ---------------------------------------------------------------------------

@@ -42,6 +42,11 @@ model Usuario {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Permissões que o admin pode delegar a um demandante, sempre restritas à
+  // própria unidade de vínculo dele (nunca a outras unidades).
+  podeImportarUsuarios    Boolean @default(false)
+  podeEditarBeneficiarios Boolean @default(false)
+
   pedidosCriados PedidoDiaria[] @relation("PedidoCriadoPor")
   aprovacoes     Aprovacao[]    @relation("AprovacoesFeitas")
 }
