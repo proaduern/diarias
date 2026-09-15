@@ -75,7 +75,7 @@ export default async function PedidoDetalhePage({
         </span>
       </div>
 
-      <section className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-white shadow-sm p-4 sm:grid-cols-2">
         <Campo label="Beneficiário" valor={pedido.beneficiario.nome} />
         <Campo label="CPF" valor={formatarCpf(pedido.beneficiario.cpf)} />
         <Campo label="Categoria" valor={pedido.beneficiario.categoria.nome} />
@@ -116,7 +116,7 @@ export default async function PedidoDetalhePage({
       </section>
 
       {situacaoPrestacao && (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
           <h2 className="mb-2 text-sm font-semibold text-slate-900">
             Prestação de contas
           </h2>
@@ -140,7 +140,7 @@ export default async function PedidoDetalhePage({
       )}
 
       {comprovanteLimite && (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
           <h2 className="mb-1 text-sm font-semibold text-slate-900">
             Comprovante de autorização anexado
           </h2>
@@ -170,7 +170,7 @@ export default async function PedidoDetalhePage({
       />
 
       {pedido.aprovacoes.length > 0 && (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
           <h2 className="mb-2 text-sm font-semibold text-slate-900">Histórico</h2>
           <ul className="space-y-1 text-sm text-slate-600">
             {pedido.aprovacoes.map((a) => (

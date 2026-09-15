@@ -38,7 +38,7 @@ export default async function DashboardPage() {
         <h1 className="text-lg font-semibold text-slate-900">Início</h1>
         <Link
           href="/pedidos/novo"
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244]"
         >
           Novo pedido de diária
         </Link>
@@ -48,7 +48,7 @@ export default async function DashboardPage() {
         {cards.map((c) => (
           <div
             key={c.label}
-            className="rounded-lg border border-slate-200 bg-white p-4"
+            className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4"
           >
             <p className="text-2xl font-semibold text-slate-900">{c.valor}</p>
             <p className="text-sm text-slate-500">{c.label}</p>
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
         <Link href="/pedidos" className="text-sm font-medium text-slate-700 underline">
           Ver todos os pedidos →
         </Link>

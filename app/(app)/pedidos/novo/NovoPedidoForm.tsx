@@ -26,7 +26,7 @@ export default function NovoPedidoForm({
   return (
     <form
       action={formAction}
-      className="max-w-2xl space-y-4 rounded-lg border border-slate-200 bg-white p-6"
+      className="max-w-2xl space-y-4 rounded-2xl border border-slate-100 bg-white shadow-sm p-6"
     >
       {ehAdmin && (
         <div>
@@ -36,7 +36,7 @@ export default function NovoPedidoForm({
           <select
             name="unidadeSolicitanteId"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="">Selecione...</option>
             {unidades.map((u) => (
@@ -55,7 +55,7 @@ export default function NovoPedidoForm({
         <select
           name="beneficiarioId"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="">Selecione...</option>
           {beneficiarios.map((b) => (
@@ -73,7 +73,7 @@ export default function NovoPedidoForm({
         <input
           name="finalidade"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
 
@@ -85,7 +85,7 @@ export default function NovoPedidoForm({
           <input
             name="municipioDestino"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -95,7 +95,7 @@ export default function NovoPedidoForm({
           <select
             name="tipoDestinoId"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="">Selecione...</option>
             {tiposDestino.map((t) => (
@@ -116,7 +116,7 @@ export default function NovoPedidoForm({
           type="number"
           min={0}
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
         <p className="mt-1 text-xs text-slate-500">
           O KM informado será conferido pela distância aferida no Google Maps,
@@ -134,7 +134,7 @@ export default function NovoPedidoForm({
             name="saidaSede"
             type="datetime-local"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -145,7 +145,7 @@ export default function NovoPedidoForm({
             name="chegadaDestino"
             type="datetime-local"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -156,7 +156,7 @@ export default function NovoPedidoForm({
             name="saidaDestino"
             type="datetime-local"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
           <p className="mt-1 text-xs text-slate-500">
             Só configura pernoite se for às 06h ou depois do dia seguinte.
@@ -170,7 +170,7 @@ export default function NovoPedidoForm({
             name="chegadaSede"
             type="datetime-local"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -184,12 +184,12 @@ export default function NovoPedidoForm({
         <textarea
           name="justificativaPrazoCurto"
           rows={2}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
 
       {state.erro && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.erro}
         </p>
       )}
@@ -197,7 +197,7 @@ export default function NovoPedidoForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         {pending ? "Enviando..." : "Lançar pedido"}
       </button>

@@ -32,7 +32,7 @@ export default function OrcamentoForm({ unidades }: { unidades: Unidade[] }) {
         <select
           name="unidadeId"
           required
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="">Selecione...</option>
           {unidades.map((u) => (
@@ -49,7 +49,7 @@ export default function OrcamentoForm({ unidades }: { unidades: Unidade[] }) {
           type="number"
           required
           defaultValue={new Date().getFullYear()}
-          className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-24 rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
       <div>
@@ -62,13 +62,13 @@ export default function OrcamentoForm({ unidades }: { unidades: Unidade[] }) {
           step="0.01"
           min={0}
           required
-          className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="w-32 rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
       </div>
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
       >
         Salvar
       </button>
