@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatarMoeda } from "@/lib/formato";
 import ConfiguracaoForm from "./ConfiguracaoForm";
+import PortariaConfigForm from "./PortariaConfigForm";
 import OrcamentoForm from "./OrcamentoForm";
 
 export default async function ConfiguracoesPage() {
@@ -20,6 +21,8 @@ export default async function ConfiguracoesPage() {
       </h1>
 
       <ConfiguracaoForm config={config} />
+
+      <PortariaConfigForm config={config} />
 
       <div className="space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm p-4">
         <h2 className="text-sm font-semibold text-slate-900">

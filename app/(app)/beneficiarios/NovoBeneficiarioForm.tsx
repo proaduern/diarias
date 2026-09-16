@@ -133,6 +133,30 @@ export default function NovoBeneficiarioForm({
             </select>
           )}
         </div>
+        {!semVinculo && (
+          <>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Matrícula
+              </label>
+              <input
+                name="matricula"
+                required
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Cargo/função
+              </label>
+              <input
+                name="cargo"
+                required
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {state.erro && (
