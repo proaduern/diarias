@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatarMoeda } from "@/lib/formato";
 import EditarContratoForm from "./EditarContratoForm";
-import CotasContratoSection from "./CotasContratoSection";
+import CotasContratoSection from "../CotasContratoSection";
 
 export default async function ContratoDetalhePage({
   params,

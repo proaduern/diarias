@@ -153,6 +153,7 @@ export async function definirCotaContratoUnidadeAction(contratoId: string, formD
   });
 
   revalidatePath(`/admin/contratos/${contratoId}`);
+  revalidatePath("/admin/contratos");
 }
 
 export async function excluirCotaContratoUnidadeAction(cotaId: string) {
@@ -160,4 +161,5 @@ export async function excluirCotaContratoUnidadeAction(cotaId: string) {
   const cota = await prisma.cotaContratoUnidade.findUniqueOrThrow({ where: { id: cotaId } });
   await prisma.cotaContratoUnidade.delete({ where: { id: cotaId } });
   revalidatePath(`/admin/contratos/${cota.contratoId}`);
+  revalidatePath("/admin/contratos");
 }
