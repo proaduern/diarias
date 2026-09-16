@@ -113,6 +113,12 @@ model Beneficiario {
   categoria        CategoriaBeneficiario @relation(fields: [categoriaId], references: [id])
   unidadeVinculoId String?
   unidadeVinculo   Unidade?              @relation(fields: [unidadeVinculoId], references: [id])
+  // Exigidos na aplicação (não no schema) apenas quando unidadeVinculoId
+  // não é nulo, isto é, quando o beneficiário tem vínculo funcional com uma
+  // unidade. Um Agente Colaborador externo (unidadeVinculoId nulo) dispensa
+  // matrícula e cargo/função — basta CPF — pois não possui nenhum dos dois.
+  matricula        String?
+  cargo            String?
   ativo            Boolean               @default(true)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
@@ -290,6 +296,20 @@ model PedidoDiaria {
   relatorioEnviadoEm       DateTime?
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
+
+  // Emissão de portaria (.docx) para download pelo admin, feita após o
+  // deferimento e levada à assinatura no SEI. numeroProcessoSei e
+  // idPropostaConcessao vêm de outro processo/sistema (SEI e Proposta de
+  // Concessão de Diárias) e são digitados manualmente — nunca inferidos a
+  // partir do id interno deste pedido. portariaNumero/portariaData também
+  // são sempre digitados manualmente (sem contador automático no sistema).
+  // Persistidos aqui para serem reaproveitados numa reemissão.
+  numeroProcessoSei   String?
+  idPropostaConcessao String?
+  portariaNumero      String?
+  portariaData        DateTime?
+  portariaEmitidaEm   DateTime?
+  portariaEmitidaPor  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -509,4 +529,14 @@ model ConfiguracaoSistema {
   prazoDevolucaoDiasCorridos  Int @default(30)
   kmMinimoSemPernoite         Int @default(40)
   duracaoMinimaHoras          Int @default(6)
+
+  // Dados fixos usados na emissão de portaria (.docx) de concessão de
+  // diárias, editados apenas quando há nova delegação de poderes ou troca
+  // de gestão — reaproveitados em toda emissão.
+  numeroPortariaDelegacao String?
+  dataPortariaDelegacao   DateTime?
+  assinante1Nome          String?
+  assinante1Cargo         String?
+  assinante2Nome          String?
+  assinante2Cargo         String?
 }

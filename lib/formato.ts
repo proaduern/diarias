@@ -35,6 +35,29 @@ export function formatarData(data: Date): string {
   }).format(data);
 }
 
+const MESES_POR_EXTENSO = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+/** "14 de setembro de 2026" — usado em documentos oficiais (portaria). */
+export function formatarDataPorExtenso(data: Date): string {
+  const dia = new Intl.DateTimeFormat("pt-BR", { day: "numeric" }).format(data);
+  const mes = MESES_POR_EXTENSO[data.getMonth()];
+  const ano = new Intl.DateTimeFormat("pt-BR", { year: "numeric" }).format(data);
+  return `${dia} de ${mes} de ${ano}`;
+}
+
 export function formatarDiarias(diarias: number | null | undefined): string {
   if (diarias == null) return "-";
   return diarias.toLocaleString("pt-BR", {

@@ -70,6 +70,8 @@ export default async function BeneficiariosPage() {
                             contaCorrente: b.contaCorrente,
                             categoriaId: b.categoriaId,
                             unidadeVinculoId: b.unidadeVinculoId,
+                            matricula: b.matricula,
+                            cargo: b.cargo,
                           }}
                           categorias={categorias}
                           unidades={unidades}

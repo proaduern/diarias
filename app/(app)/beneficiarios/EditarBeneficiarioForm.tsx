@@ -14,6 +14,8 @@ interface BeneficiarioParaEdicao {
   contaCorrente: string;
   categoriaId: string;
   unidadeVinculoId: string | null;
+  matricula: string | null;
+  cargo: string | null;
 }
 
 export default function EditarBeneficiarioForm({
@@ -143,6 +145,28 @@ export default function EditarBeneficiarioForm({
               </select>
             )}
           </div>
+        )}
+        {!semVinculo && (
+          <>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Matrícula</label>
+              <input
+                name="matricula"
+                required
+                defaultValue={beneficiario.matricula ?? ""}
+                className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Cargo/função</label>
+              <input
+                name="cargo"
+                required
+                defaultValue={beneficiario.cargo ?? ""}
+                className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+              />
+            </div>
+          </>
         )}
       </div>
 

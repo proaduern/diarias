@@ -355,6 +355,51 @@ export async function atualizarConfiguracaoAction(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// Configuração da portaria de concessão de diária (delegação + assinantes)
+// ---------------------------------------------------------------------------
+
+export async function atualizarConfiguracaoPortariaAction(formData: FormData) {
+  await exigirAdmin();
+
+  const numeroPortariaDelegacao = String(formData.get("numeroPortariaDelegacao") ?? "").trim();
+  const dataPortariaDelegacaoBruta = String(formData.get("dataPortariaDelegacao") ?? "").trim();
+  const assinante1Nome = String(formData.get("assinante1Nome") ?? "").trim();
+  const assinante1Cargo = String(formData.get("assinante1Cargo") ?? "").trim();
+  const assinante2Nome = String(formData.get("assinante2Nome") ?? "").trim();
+  const assinante2Cargo = String(formData.get("assinante2Cargo") ?? "").trim();
+
+  if (
+    !numeroPortariaDelegacao ||
+    !dataPortariaDelegacaoBruta ||
+    !assinante1Nome ||
+    !assinante1Cargo ||
+    !assinante2Nome ||
+    !assinante2Cargo
+  ) {
+    throw new Error("Preencha todos os campos de delegação e assinantes.");
+  }
+
+  const dataPortariaDelegacao = new Date(dataPortariaDelegacaoBruta);
+  if (Number.isNaN(dataPortariaDelegacao.getTime())) {
+    throw new Error("Data da portaria de delegação inválida.");
+  }
+
+  await prisma.configuracaoSistema.update({
+    where: { id: 1 },
+    data: {
+      numeroPortariaDelegacao,
+      dataPortariaDelegacao,
+      assinante1Nome,
+      assinante1Cargo,
+      assinante2Nome,
+      assinante2Cargo,
+    },
+  });
+
+  revalidatePath("/admin/configuracoes");
+}
+
+// ---------------------------------------------------------------------------
 // Orçamento (opcional, apenas informativo)
 // ---------------------------------------------------------------------------
 

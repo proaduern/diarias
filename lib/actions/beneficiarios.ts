@@ -24,9 +24,17 @@ export async function criarBeneficiarioAction(
   const contaCorrente = String(formData.get("contaCorrente") ?? "").trim();
   const categoriaId = String(formData.get("categoriaId") ?? "");
   const unidadeVinculoId = String(formData.get("unidadeVinculoId") ?? "") || null;
+  // Matrícula e cargo/função só se aplicam a quem tem vínculo funcional com
+  // uma unidade. Um Agente Colaborador externo (sem vínculo) dispensa os
+  // dois — basta CPF — então são sempre nulos nesse caso.
+  const matricula = unidadeVinculoId ? String(formData.get("matricula") ?? "").trim() || null : null;
+  const cargo = unidadeVinculoId ? String(formData.get("cargo") ?? "").trim() || null : null;
 
   if (!nome || !cpf || !banco || !agencia || !contaCorrente || !categoriaId) {
     return { erro: "Preencha todos os campos obrigatórios." };
+  }
+  if (unidadeVinculoId && (!matricula || !cargo)) {
+    return { erro: "Matrícula e cargo/função são obrigatórios para beneficiário com vínculo funcional." };
   }
 
   if (!cpfValido(cpf)) {
@@ -59,6 +67,8 @@ export async function criarBeneficiarioAction(
       contaCorrente,
       categoriaId,
       unidadeVinculoId,
+      matricula,
+      cargo,
     },
   });
 
@@ -94,8 +104,27 @@ export async function atualizarBeneficiarioAction(beneficiarioId: string, formDa
   const contaCorrente = String(formData.get("contaCorrente") ?? "").trim();
   const categoriaId = String(formData.get("categoriaId") ?? "");
 
+  // unidadeVinculoId só vem no formulário quando quem edita é admin (só ele
+  // pode trocar a unidade de vínculo); um demandante autorizado só edita
+  // beneficiários já vinculados à própria unidade, então o vínculo efetivo
+  // para decidir se matrícula/cargo são obrigatórios é sempre o existente.
+  const unidadeVinculoIdEfetivo =
+    sessao.perfil === "ADMIN"
+      ? String(formData.get("unidadeVinculoId") ?? "") || null
+      : beneficiario.unidadeVinculoId;
+
+  const matricula = unidadeVinculoIdEfetivo
+    ? String(formData.get("matricula") ?? "").trim() || null
+    : null;
+  const cargo = unidadeVinculoIdEfetivo
+    ? String(formData.get("cargo") ?? "").trim() || null
+    : null;
+
   if (!nome || !cpf || !banco || !agencia || !contaCorrente || !categoriaId) {
     throw new Error("Preencha todos os campos obrigatórios.");
+  }
+  if (unidadeVinculoIdEfetivo && (!matricula || !cargo)) {
+    throw new Error("Matrícula e cargo/função são obrigatórios para beneficiário com vínculo funcional.");
   }
   if (!cpfValido(cpf)) {
     throw new Error("CPF inválido (dígito verificador não confere).");
@@ -125,6 +154,8 @@ export async function atualizarBeneficiarioAction(beneficiarioId: string, formDa
     agencia,
     contaCorrente,
     categoria: { connect: { id: categoriaId } },
+    matricula,
+    cargo,
   };
 
   if (sessao.perfil === "ADMIN") {

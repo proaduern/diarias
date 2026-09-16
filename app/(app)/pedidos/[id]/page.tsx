@@ -4,6 +4,7 @@ import { obterSessao } from "@/lib/auth";
 import { formatarCpf, formatarDataHora, formatarDiarias, formatarMoeda } from "@/lib/formato";
 import { avaliarPrestacaoContas, type SituacaoPrestacaoContas } from "@/lib/prestacao-contas";
 import AcoesPedido from "./AcoesPedido";
+import EmitirPortariaForm from "./EmitirPortariaForm";
 import type { TipoPedido } from "@/lib/actions/pedidos";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -299,6 +300,35 @@ export default async function ViagemDetalhePage({
               ehAdmin={ehAdmin}
               temComprovanteLimite={Boolean(comprovanteLimite)}
             />
+
+            {tipo === "DIARIA" && ehAdmin && pedido.status === "DEFERIDO" && "diarias" in pedido && (
+              <EmitirPortariaForm
+                pedidoId={pedido.id}
+                valoresIniciais={{
+                  numeroProcessoSei: pedido.numeroProcessoSei,
+                  idPropostaConcessao: pedido.idPropostaConcessao,
+                  portariaNumero: pedido.portariaNumero,
+                  portariaData: pedido.portariaData,
+                }}
+                portariaEmitidaEm={pedido.portariaEmitidaEm}
+                portariaEmitidaPor={pedido.portariaEmitidaPor}
+                bloqueios={[
+                  ...(!config.numeroPortariaDelegacao || !config.dataPortariaDelegacao
+                    ? ["Configure o número/data da portaria de delegação de poderes em Configurações."]
+                    : []),
+                  ...(!config.assinante1Nome || !config.assinante1Cargo
+                    ? ["Configure os dados do 1º assinante em Configurações."]
+                    : []),
+                  ...(!config.assinante2Nome || !config.assinante2Cargo
+                    ? ["Configure os dados do 2º assinante em Configurações."]
+                    : []),
+                  ...(viagem.beneficiario.unidadeVinculoId &&
+                  (!viagem.beneficiario.matricula || !viagem.beneficiario.cargo)
+                    ? ["Cadastre matrícula e cargo/função do beneficiário antes de emitir a portaria."]
+                    : []),
+                ]}
+              />
+            )}
 
             {pedido.aprovacoes.length > 0 && (
               <div>
