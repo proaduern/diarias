@@ -20,6 +20,16 @@ export async function criarUnidadeAction(formData: FormData) {
   revalidatePath("/admin/unidades");
 }
 
+export async function atualizarUnidadeAction(unidadeId: string, formData: FormData) {
+  await exigirAdmin();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  if (!nome || !email) throw new Error("Preencha nome e email.");
+
+  await prisma.unidade.update({ where: { id: unidadeId }, data: { nome, email } });
+  revalidatePath("/admin/unidades");
+}
+
 export async function excluirUnidadeAction(unidadeId: string) {
   await exigirAdmin();
   const emUso = await prisma.usuario.count({ where: { unidadeId } });
@@ -70,6 +80,52 @@ export async function criarUsuarioAction(formData: FormData) {
       unidadeId,
     },
   });
+  revalidatePath("/admin/usuarios");
+}
+
+export async function atualizarUsuarioAction(usuarioId: string, formData: FormData) {
+  await exigirAdmin();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const cpf = String(formData.get("cpf") ?? "").trim();
+  const senha = String(formData.get("senha") ?? "");
+  const perfil = String(formData.get("perfil") ?? "DEMANDANTE") as "ADMIN" | "DEMANDANTE";
+  const unidadeId = String(formData.get("unidadeId") ?? "") || null;
+
+  if (!nome || !email || !cpf) {
+    throw new Error("Preencha todos os campos obrigatórios.");
+  }
+  if (!email.toLowerCase().endsWith("@uern.br")) {
+    throw new Error("O email de acesso ao sistema precisa ser do domínio @uern.br.");
+  }
+  if (!cpfValido(cpf)) {
+    throw new Error("CPF inválido.");
+  }
+  if (perfil === "DEMANDANTE" && !unidadeId) {
+    throw new Error("Usuário demandante precisa estar vinculado a uma unidade.");
+  }
+
+  const data: Parameters<typeof prisma.usuario.update>[0]["data"] = {
+    nome,
+    email,
+    cpf: cpf.replace(/\D/g, ""),
+    perfil,
+    unidadeId,
+  };
+  if (senha) {
+    data.senhaHash = await gerarHashSenha(senha);
+  }
+
+  try {
+    await prisma.usuario.update({ where: { id: usuarioId }, data });
+  } catch (e) {
+    const mensagem = e instanceof Error ? e.message : "";
+    throw new Error(
+      mensagem.includes("Unique constraint")
+        ? "Já existe outro usuário cadastrado com este email ou CPF."
+        : mensagem,
+    );
+  }
   revalidatePath("/admin/usuarios");
 }
 
