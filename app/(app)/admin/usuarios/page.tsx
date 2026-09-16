@@ -6,6 +6,7 @@ import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
 import ImportarPlanilhaForm from "../ImportarPlanilhaForm";
 import PermissoesUsuario from "./PermissoesUsuario";
+import EditarUsuarioForm from "./EditarUsuarioForm";
 
 export default async function UsuariosPage() {
   const [usuarios, unidades] = await Promise.all([
@@ -84,7 +85,18 @@ export default async function UsuariosPage() {
                     <span className="text-xs text-slate-400">—</span>
                   )}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 space-y-1">
+                  <EditarUsuarioForm
+                    usuario={{
+                      id: u.id,
+                      nome: u.nome,
+                      email: u.email,
+                      cpf: u.cpf,
+                      perfil: u.perfil,
+                      unidadeId: u.unidadeId,
+                    }}
+                    unidades={unidades}
+                  />
                   <BotaoExcluir action={excluirUsuarioAction} id={u.id} />
                 </td>
               </tr>

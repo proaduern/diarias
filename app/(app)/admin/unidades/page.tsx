@@ -4,6 +4,7 @@ import { importarUnidadesAction } from "@/lib/actions/importacao";
 import FormularioSimples from "../FormularioSimples";
 import BotaoExcluir from "../BotaoExcluir";
 import ImportarPlanilhaForm from "../ImportarPlanilhaForm";
+import EditarUnidadeForm from "./EditarUnidadeForm";
 
 export default async function UnidadesPage() {
   const unidades = await prisma.unidade.findMany({ orderBy: { nome: "asc" } });
@@ -42,7 +43,8 @@ export default async function UnidadesPage() {
               <tr key={u.id}>
                 <td className="px-4 py-2 text-slate-900">{u.nome}</td>
                 <td className="px-4 py-2 text-slate-600">{u.email}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 space-y-1">
+                  <EditarUnidadeForm unidade={{ id: u.id, nome: u.nome, email: u.email }} />
                   <BotaoExcluir action={excluirUnidadeAction} id={u.id} />
                 </td>
               </tr>
