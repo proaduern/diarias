@@ -1,20 +1,18 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { criarContratoAction, excluirContratoAction } from "@/lib/actions/contratos";
-import { formatarCnpj, formatarData, formatarMoeda } from "@/lib/formato";
+import { criarContratoAction } from "@/lib/actions/contratos";
 import FormularioSimples from "../FormularioSimples";
-import BotaoExcluir from "../BotaoExcluir";
-
-const TIPO_LABEL: Record<string, string> = {
-  HOSPEDAGEM: "Hospedagem",
-  PASSAGEM_AEREA: "Passagem aérea",
-  PASSAGEM_TERRESTRE: "Passagem terrestre",
-};
+import ContratoLinha from "./ContratoLinha";
 
 export default async function ContratosPage() {
-  const contratos = await prisma.contrato.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [contratos, unidades] = await Promise.all([
+    prisma.contrato.findMany({
+      include: {
+        cotasPorUnidade: { include: { unidade: true }, orderBy: { unidade: { nome: "asc" } } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.unidade.findMany({ orderBy: { nome: "asc" } }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -65,32 +63,28 @@ export default async function ContratosPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {contratos.map((c) => (
-              <tr key={c.id} className={c.ativo ? "" : "opacity-50"}>
-                <td className="px-4 py-2 text-slate-600">{TIPO_LABEL[c.tipoBeneficio]}</td>
-                <td className="px-4 py-2 text-slate-900">
-                  {c.empresaNome}
-                  <span className="block text-xs text-slate-400">{formatarCnpj(c.empresaCnpj)}</span>
-                </td>
-                <td className="px-4 py-2 text-slate-600">
-                  {c.numeroContrato} / SEI {c.numeroProcessoSei}
-                </td>
-                <td className="px-4 py-2 text-slate-600">
-                  {formatarData(c.vigenciaInicio)} a {formatarData(c.vigenciaFim)}
-                </td>
-                <td className="px-4 py-2 text-slate-600">
-                  {formatarMoeda(c.valorTotalCentavos, "BRL")}
-                </td>
-                <td className="px-4 py-2 text-slate-600">{c.ativo ? "Ativo" : "Inativo"}</td>
-                <td className="px-4 py-2 space-y-1">
-                  <Link
-                    href={`/admin/contratos/${c.id}`}
-                    className="block text-xs text-slate-600 underline"
-                  >
-                    Gerenciar cotas
-                  </Link>
-                  <BotaoExcluir action={excluirContratoAction} id={c.id} />
-                </td>
-              </tr>
+              <ContratoLinha
+                key={c.id}
+                contrato={{
+                  id: c.id,
+                  tipoBeneficio: c.tipoBeneficio,
+                  empresaNome: c.empresaNome,
+                  empresaCnpj: c.empresaCnpj,
+                  numeroContrato: c.numeroContrato,
+                  numeroProcessoSei: c.numeroProcessoSei,
+                  vigenciaInicio: c.vigenciaInicio,
+                  vigenciaFim: c.vigenciaFim,
+                  valorTotalCentavos: c.valorTotalCentavos,
+                  ativo: c.ativo,
+                }}
+                unidades={unidades}
+                cotas={c.cotasPorUnidade.map((cota) => ({
+                  id: cota.id,
+                  unidadeId: cota.unidadeId,
+                  unidadeNome: cota.unidade.nome,
+                  cotaCentavos: cota.cotaCentavos,
+                }))}
+              />
             ))}
             {contratos.length === 0 && (
               <tr>
