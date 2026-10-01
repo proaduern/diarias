@@ -27,6 +27,12 @@ function mensagemDeErro(e: unknown, duplicidade: string): string {
   return mensagem.includes("Unique constraint") ? duplicidade : mensagem;
 }
 
+/** Aceita "sim"/"não", "true"/"false", "1"/"0" (case-insensitive); vazio/outro valor = false. */
+function parseBooleanPlanilha(valor: string): boolean {
+  const normalizado = valor.trim().toLowerCase();
+  return normalizado === "sim" || normalizado === "true" || normalizado === "1";
+}
+
 // ---------------------------------------------------------------------------
 // Unidades (admin)
 // ---------------------------------------------------------------------------
@@ -171,5 +177,57 @@ export async function importarUsuariosAction(formData: FormData): Promise<Result
   }
 
   revalidatePath("/admin/usuarios");
+  return { sucesso, erros };
+}
+
+// ---------------------------------------------------------------------------
+// Enquadramento de atividade (admin)
+// ---------------------------------------------------------------------------
+
+export async function importarEnquadramentosAction(formData: FormData): Promise<ResultadoImportacao> {
+  let linhas: Awaited<ReturnType<typeof obterLinhas>>;
+  try {
+    await exigirAdmin();
+    linhas = await obterLinhas(formData);
+  } catch (e) {
+    return { sucesso: 0, erros: [{ linha: 0, mensagem: e instanceof Error ? e.message : "Erro inesperado." }] };
+  }
+
+  const erros: ResultadoImportacao["erros"] = [];
+  let sucesso = 0;
+
+  for (const { linha, dados } of linhas) {
+    try {
+      const categoriaBruta = (dados.categoria ?? "").trim().toUpperCase();
+      if (categoriaBruta !== "ACADEMICA" && categoriaBruta !== "ADMINISTRATIVA") {
+        throw new Error('categoria deve ser "ACADEMICA" ou "ADMINISTRATIVA".');
+      }
+      const categoria = categoriaBruta as "ACADEMICA" | "ADMINISTRATIVA";
+      const nome = (dados.nome ?? "").trim();
+      if (!nome) {
+        throw new Error("preencha nome.");
+      }
+      const descricao = (dados.descricao ?? "").trim() || null;
+      const exigeDetalhamento = parseBooleanPlanilha(dados.exigeDetalhamento ?? "");
+      const exigeAnexo = parseBooleanPlanilha(dados.exigeAnexo ?? "");
+      const ordemBruta = (dados.ordem ?? "").trim();
+      const ordem = ordemBruta ? Number(ordemBruta) : 0;
+      if (!Number.isFinite(ordem)) {
+        throw new Error("ordem inválida.");
+      }
+
+      await prisma.enquadramentoAtividade.create({
+        data: { categoria, nome, descricao, exigeDetalhamento, exigeAnexo, ordem },
+      });
+      sucesso++;
+    } catch (e) {
+      erros.push({
+        linha,
+        mensagem: mensagemDeErro(e, "já existe um enquadramento com este nome nesta categoria."),
+      });
+    }
+  }
+
+  revalidatePath("/admin/enquadramentos");
   return { sucesso, erros };
 }

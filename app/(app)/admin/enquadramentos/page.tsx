@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { excluirEnquadramentoAction } from "@/lib/actions/admin";
+import { importarEnquadramentosAction } from "@/lib/actions/importacao";
 import BotaoExcluir from "../BotaoExcluir";
+import ImportarPlanilhaForm from "../ImportarPlanilhaForm";
 import NovoEnquadramentoForm from "./NovoEnquadramentoForm";
 import EditarEnquadramentoForm from "./EditarEnquadramentoForm";
 
@@ -26,6 +28,20 @@ export default async function EnquadramentosPage() {
       </p>
 
       <NovoEnquadramentoForm />
+
+      <ImportarPlanilhaForm
+        action={importarEnquadramentosAction}
+        titulo="Importar enquadramentos em lote (planilha)"
+        colunas={[
+          "categoria (ACADEMICA/ADMINISTRATIVA)",
+          "nome",
+          "descricao",
+          "exigeDetalhamento (sim/não)",
+          "exigeAnexo (sim/não)",
+          "ordem",
+        ]}
+        modeloHref="/modelos/enquadramentos.xlsx"
+      />
 
       <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
         <table className="w-full text-sm">
