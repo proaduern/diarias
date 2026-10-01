@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { criarViagemComPedidosAction, type CriarViagemState } from "@/lib/actions/viagens";
+import { carregarRascunho, formDataParaRascunho, limparRascunho, salvarRascunho } from "./rascunho";
 import AtividadesFormSection from "./AtividadesFormSection";
 import SedeDestinoAeroportoSection from "./SedeDestinoAeroportoSection";
 import type {
@@ -20,6 +21,7 @@ type BeneficiarioComCategoria = Beneficiario & {
 };
 
 export default function NovoPedidoForm({
+  usuarioId,
   beneficiarios,
   tiposDestino,
   unidades,
@@ -30,6 +32,7 @@ export default function NovoPedidoForm({
   contratosHospedagem,
   contratosPassagemAerea,
 }: {
+  usuarioId: string;
   beneficiarios: BeneficiarioComCategoria[];
   tiposDestino: TipoDestino[];
   unidades: Unidade[];
@@ -48,11 +51,101 @@ export default function NovoPedidoForm({
   const beneficiarioSelecionado = beneficiarios.find((b) => b.id === beneficiarioId);
   const elegivelHospedagem = beneficiarioSelecionado?.categoria.elegivelHospedagem ?? false;
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const autosaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rascunho, setRascunho] = useState<Record<string, string> | null>(null);
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
+
+  // Carrega o rascunho salvo no navegador (se houver) assim que a página
+  // monta. Precisa ser em efeito (não em useState lazy) porque localStorage
+  // não existe durante o SSR — ler aqui, só no cliente, evita divergir do
+  // HTML renderizado no servidor.
+  useEffect(() => {
+    const salvo = carregarRascunho(usuarioId);
+    if (salvo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com localStorage, só existe no cliente
+      setRascunho(salvo);
+      setRascunhoRestaurado(true);
+    }
+  }, [usuarioId]);
+
+  // Restaura os campos controlados por este componente e, no próximo tick
+  // (depois que os componentes filhos já tiverem recriado suas próprias
+  // linhas/seções condicionais a partir do mesmo rascunho), preenche os
+  // demais campos do formulário diretamente no DOM. Arquivos nunca são
+  // restaurados — o navegador não permite, e por segurança não deveria.
+  useEffect(() => {
+    if (!rascunho) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com o rascunho carregado acima
+    setBeneficiarioId(rascunho.beneficiarioId ?? "");
+    setQuerHospedagem(rascunho.tipoHospedagem === "on");
+    setQuerPassagemAerea(rascunho.tipoPassagemAerea === "on");
+
+    const camposControladosAqui = new Set(["beneficiarioId", "tipoHospedagem", "tipoPassagemAerea"]);
+
+    const timer = setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      for (const [nome, valor] of Object.entries(rascunho)) {
+        if (camposControladosAqui.has(nome)) continue;
+        const campo = form.elements.namedItem(nome);
+        if (!campo || campo instanceof RadioNodeList) continue;
+        if (campo instanceof HTMLInputElement) {
+          if (campo.type === "file") continue;
+          if (campo.type === "checkbox") {
+            campo.checked = valor === "on";
+          } else {
+            campo.value = valor;
+          }
+        } else if (campo instanceof HTMLTextAreaElement || campo instanceof HTMLSelectElement) {
+          campo.value = valor;
+        }
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [rascunho]);
+
+  function agendarAutosave() {
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    autosaveRef.current = setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      salvarRascunho(usuarioId, formDataParaRascunho(new FormData(form)));
+    }, 500);
+  }
+
+  function descartarRascunho() {
+    limparRascunho(usuarioId);
+    window.location.reload();
+  }
+
   return (
     <form
+      ref={formRef}
       action={formAction}
+      onChange={agendarAutosave}
+      onSubmit={() => limparRascunho(usuarioId)}
       className="max-w-2xl space-y-4 rounded-2xl border border-slate-100 bg-white shadow-sm p-6"
     >
+      <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+        Suas respostas ficam salvas automaticamente neste navegador enquanto
+        você preenche — se precisar sair da tela ou do sistema, pode
+        continuar de onde parou ao voltar (exceto arquivos anexados, que
+        precisam ser selecionados de novo).
+      </p>
+
+      {rascunhoRestaurado && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          <span>Um rascunho salvo anteriormente foi restaurado.</span>
+          <button
+            type="button"
+            onClick={descartarRascunho}
+            className="whitespace-nowrap font-medium underline"
+          >
+            Descartar e começar do zero
+          </button>
+        </div>
+      )}
       {ehAdmin && (
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-700">
@@ -134,7 +227,7 @@ export default function NovoPedidoForm({
         </div>
       </div>
 
-      <SedeDestinoAeroportoSection />
+      <SedeDestinoAeroportoSection valoresIniciais={rascunho ?? undefined} />
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-700">
@@ -217,7 +310,7 @@ export default function NovoPedidoForm({
         />
       </div>
 
-      <AtividadesFormSection enquadramentos={enquadramentos} />
+      <AtividadesFormSection enquadramentos={enquadramentos} valoresIniciais={rascunho ?? undefined} />
 
       <label className="flex items-start gap-2 text-xs text-slate-700">
         <input type="checkbox" name="cienciaPrazoAtividade" className="mt-0.5" />
