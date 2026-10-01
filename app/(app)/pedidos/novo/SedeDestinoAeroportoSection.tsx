@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calcularTempoViagemAeroporto } from "@/lib/tempo-viagem";
 
 function formatarMinutos(minutos: number): string {
@@ -10,11 +10,31 @@ function formatarMinutos(minutos: number): string {
   return `${horas}h${min.toString().padStart(2, "0")}`;
 }
 
-export default function SedeDestinoAeroportoSection() {
+export default function SedeDestinoAeroportoSection({
+  valoresIniciais,
+}: {
+  /** Vem do rascunho salvo no navegador, restaurado depois da montagem — ver NovoPedidoForm. */
+  valoresIniciais?: Record<string, string>;
+}) {
   const [vaiBuscarAeroporto, setVaiBuscarAeroporto] = useState(false);
   const [kmSedeAeroporto, setKmSedeAeroporto] = useState("");
   const [kmVoo, setKmVoo] = useState("");
   const [kmAeroportoDestino, setKmAeroportoDestino] = useState("");
+
+  // Restaura o estado que controla a renderização condicional (e os próprios
+  // campos controlados) assim que o rascunho chega — os demais campos desta
+  // seção (sedeCidade/sedeEstado/destinoEstado) não são controlados e são
+  // restaurados pelo NovoPedidoForm diretamente no DOM.
+  useEffect(() => {
+    if (!valoresIniciais) return;
+    if (valoresIniciais.vaiBuscarAeroporto === "on") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com o rascunho restaurado pelo NovoPedidoForm
+      setVaiBuscarAeroporto(true);
+      setKmSedeAeroporto(valoresIniciais.kmSedeAeroporto ?? "");
+      setKmVoo(valoresIniciais.kmVoo ?? "");
+      setKmAeroportoDestino(valoresIniciais.kmAeroportoDestino ?? "");
+    }
+  }, [valoresIniciais]);
 
   const situacao = useMemo(() => {
     const a = Number(kmSedeAeroporto);

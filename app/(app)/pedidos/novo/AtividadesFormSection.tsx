@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EnquadramentoAtividade } from "@prisma/client";
 
 interface Linha {
@@ -15,11 +15,35 @@ const CATEGORIA_LABEL: Record<string, string> = {
 
 export default function AtividadesFormSection({
   enquadramentos,
+  valoresIniciais,
 }: {
   enquadramentos: EnquadramentoAtividade[];
+  /** Vem do rascunho salvo no navegador, restaurado depois da montagem — ver NovoPedidoForm. */
+  valoresIniciais?: Record<string, string>;
 }) {
   const [linhas, setLinhas] = useState<Linha[]>([{ key: 0, enquadramentoId: "" }]);
   const [proximoKey, setProximoKey] = useState(1);
+
+  // Restaura a quantidade de linhas e o enquadramento de cada uma — os
+  // demais campos de cada linha (descricao/detalhamento/datas) não são
+  // controlados e são restaurados pelo NovoPedidoForm diretamente no DOM,
+  // depois que estas linhas existirem. Anexos nunca são restaurados.
+  useEffect(() => {
+    if (!valoresIniciais) return;
+    const quantidade = Number(valoresIniciais.quantidadeAtividades ?? "0");
+    if (!Number.isFinite(quantidade) || quantidade <= 0) return;
+
+    const linhasRestauradas: Linha[] = [];
+    for (let i = 0; i < quantidade; i++) {
+      linhasRestauradas.push({
+        key: i,
+        enquadramentoId: valoresIniciais[`atividades[${i}][enquadramentoId]`] ?? "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com o rascunho restaurado pelo NovoPedidoForm
+    setLinhas(linhasRestauradas);
+    setProximoKey(quantidade);
+  }, [valoresIniciais]);
 
   function adicionar() {
     setLinhas((ls) => [...ls, { key: proximoKey, enquadramentoId: "" }]);

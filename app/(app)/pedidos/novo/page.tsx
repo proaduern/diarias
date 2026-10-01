@@ -41,6 +41,7 @@ export default async function NovoPedidoPage() {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold text-slate-900">Nova solicitação</h1>
       <NovoPedidoForm
+        usuarioId={sessao.userId}
         beneficiarios={beneficiarios}
         tiposDestino={tiposDestino}
         unidades={unidades}
