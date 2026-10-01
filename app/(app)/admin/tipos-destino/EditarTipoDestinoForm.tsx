@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarTipoDestinoAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 
 interface TipoDestinoParaEdicao {
   id: string;
@@ -31,7 +32,7 @@ export default function EditarTipoDestinoForm({ tipo }: { tipo: TipoDestinoParaE
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarTipoDestinoAction(tipo.id, formData);
+            desempacotar(await atualizarTipoDestinoAction(tipo.id, formData));
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

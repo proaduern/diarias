@@ -13,6 +13,7 @@ import {
   regularizarPendenciaAction,
   type TipoPedido,
 } from "@/lib/actions/pedidos";
+import { desempacotar, type ResultadoAction } from "@/lib/actions/resultado";
 
 interface PedidoAcoes {
   id: string;
@@ -46,11 +47,11 @@ export default function AcoesPedido({
   const exigeValorCotado = tipo === "HOSPEDAGEM" || tipo === "PASSAGEM_AEREA";
   const valorCotadoFaltando = exigeValorCotado && pedido.valorTotalCentavos == null;
 
-  function executar(fn: () => Promise<unknown>) {
+  function executar(fn: () => Promise<ResultadoAction>) {
     setErro(null);
     startTransition(async () => {
       try {
-        await fn();
+        desempacotar(await fn());
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Erro inesperado.");
       }

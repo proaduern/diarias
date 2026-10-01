@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { excluirContratoAction } from "@/lib/actions/contratos";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarCnpj, formatarData, formatarMoeda } from "@/lib/formato";
 import CotasContratoSection from "./CotasContratoSection";
 import type { Unidade } from "@prisma/client";
@@ -75,7 +76,7 @@ export default function ContratoLinha({ contrato: c, unidades, cotas }: Contrato
               setErro(null);
               startTransition(async () => {
                 try {
-                  await excluirContratoAction(c.id);
+                  desempacotar(await excluirContratoAction(c.id));
                 } catch (err) {
                   setErro(err instanceof Error ? err.message : "Erro inesperado.");
                 }

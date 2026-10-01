@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { criarEnquadramentoAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 
 export default function NovoEnquadramentoForm() {
   const [aberto, setAberto] = useState(false);
@@ -29,7 +30,7 @@ export default function NovoEnquadramentoForm() {
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await criarEnquadramentoAction(formData);
+            desempacotar(await criarEnquadramentoAction(formData));
             formRef.current?.reset();
             setAberto(false);
           } catch (err) {

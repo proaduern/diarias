@@ -5,6 +5,7 @@ import {
   definirCotaContratoUnidadeAction,
   excluirCotaContratoUnidadeAction,
 } from "@/lib/actions/contratos";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarMoeda } from "@/lib/formato";
 import type { Unidade } from "@prisma/client";
 
@@ -44,7 +45,7 @@ export default function CotasContratoSection({
           const formData = new FormData(e.currentTarget);
           startTransition(async () => {
             try {
-              await definirCotaContratoUnidadeAction(contratoId, formData);
+              desempacotar(await definirCotaContratoUnidadeAction(contratoId, formData));
               formRef.current?.reset();
             } catch (err) {
               setErro(err instanceof Error ? err.message : "Erro inesperado.");
@@ -114,7 +115,7 @@ export default function CotasContratoSection({
                     onClick={() =>
                       startTransition(async () => {
                         try {
-                          await excluirCotaContratoUnidadeAction(c.id);
+                          desempacotar(await excluirCotaContratoUnidadeAction(c.id));
                         } catch (err) {
                           setErro(err instanceof Error ? err.message : "Erro inesperado.");
                         }

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { definirOrcamentoAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 import type { Unidade } from "@prisma/client";
 
 export default function OrcamentoForm({ unidades }: { unidades: Unidade[] }) {
@@ -18,7 +19,7 @@ export default function OrcamentoForm({ unidades }: { unidades: Unidade[] }) {
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await definirOrcamentoAction(formData);
+            desempacotar(await definirOrcamentoAction(formData));
             formRef.current?.reset();
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

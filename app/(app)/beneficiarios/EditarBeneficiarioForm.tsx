@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarBeneficiarioAction } from "@/lib/actions/beneficiarios";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarCpf } from "@/lib/formato";
 import type { CategoriaBeneficiario, Unidade } from "@prisma/client";
 
@@ -50,7 +51,7 @@ export default function EditarBeneficiarioForm({
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarBeneficiarioAction(beneficiario.id, formData);
+            desempacotar(await atualizarBeneficiarioAction(beneficiario.id, formData));
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

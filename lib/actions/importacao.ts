@@ -32,8 +32,14 @@ function mensagemDeErro(e: unknown, duplicidade: string): string {
 // ---------------------------------------------------------------------------
 
 export async function importarUnidadesAction(formData: FormData): Promise<ResultadoImportacao> {
-  await exigirAdmin();
-  const linhas = await obterLinhas(formData);
+  let linhas: Awaited<ReturnType<typeof obterLinhas>>;
+  try {
+    await exigirAdmin();
+    linhas = await obterLinhas(formData);
+  } catch (e) {
+    return { sucesso: 0, erros: [{ linha: 0, mensagem: e instanceof Error ? e.message : "Erro inesperado." }] };
+  }
+
   const erros: ResultadoImportacao["erros"] = [];
   let sucesso = 0;
 
@@ -74,13 +80,19 @@ export async function importarUnidadesAction(formData: FormData): Promise<Result
 // ---------------------------------------------------------------------------
 
 export async function importarUsuariosAction(formData: FormData): Promise<ResultadoImportacao> {
-  const sessao = await exigirSessao();
-  const autorizado = sessao.perfil === "ADMIN" || sessao.podeImportarUsuarios;
-  if (!autorizado) {
-    throw new Error("Você não tem permissão para importar usuários.");
+  let sessao: Awaited<ReturnType<typeof exigirSessao>>;
+  let linhas: Awaited<ReturnType<typeof obterLinhas>>;
+  try {
+    sessao = await exigirSessao();
+    const autorizado = sessao.perfil === "ADMIN" || sessao.podeImportarUsuarios;
+    if (!autorizado) {
+      throw new Error("Você não tem permissão para importar usuários.");
+    }
+    linhas = await obterLinhas(formData);
+  } catch (e) {
+    return { sucesso: 0, erros: [{ linha: 0, mensagem: e instanceof Error ? e.message : "Erro inesperado." }] };
   }
 
-  const linhas = await obterLinhas(formData);
   const erros: ResultadoImportacao["erros"] = [];
   let sucesso = 0;
 

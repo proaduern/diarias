@@ -20,7 +20,9 @@ export default function BotaoExcluirBeneficiario({
       <button
         disabled={isPending}
         onClick={() =>
-          startTransition(() => reativarBeneficiarioAction(beneficiarioId))
+          startTransition(async () => {
+            await reativarBeneficiarioAction(beneficiarioId);
+          })
         }
         className="text-xs font-medium text-slate-600 underline hover:text-slate-900"
       >
@@ -38,7 +40,9 @@ export default function BotaoExcluirBeneficiario({
             "Excluir este beneficiário? Se ele já tiver pedidos vinculados, ele será apenas desativado.",
           )
         ) {
-          startTransition(() => excluirBeneficiarioAction(beneficiarioId));
+          startTransition(async () => {
+            await excluirBeneficiarioAction(beneficiarioId);
+          });
         }
       }}
       className="text-xs font-medium text-red-600 underline hover:text-red-800"

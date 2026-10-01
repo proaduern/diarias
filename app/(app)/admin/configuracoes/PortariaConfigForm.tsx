@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarConfiguracaoPortariaAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 import type { ConfiguracaoSistema } from "@prisma/client";
 
 function paraInputDate(data: Date | null): string {
@@ -26,7 +27,7 @@ export default function PortariaConfigForm({ config }: { config: ConfiguracaoSis
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarConfiguracaoPortariaAction(formData);
+            desempacotar(await atualizarConfiguracaoPortariaAction(formData));
             setSucesso(true);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

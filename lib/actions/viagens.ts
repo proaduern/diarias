@@ -93,7 +93,12 @@ export async function criarViagemComPedidosAction(
   formData: FormData,
 ): Promise<CriarViagemState> {
   const sessao = await exigirSessao();
-  const config = await obterConfiguracao();
+  let config: Awaited<ReturnType<typeof obterConfiguracao>>;
+  try {
+    config = await obterConfiguracao();
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : "Erro inesperado." };
+  }
 
   // --- Tipos de pedido selecionados ---
   const querDiaria = formData.get("tipoDiaria") === "on";

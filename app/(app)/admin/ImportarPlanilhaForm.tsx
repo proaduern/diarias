@@ -76,7 +76,8 @@ export default function ImportarPlanilhaForm({
                 <ul className="mt-1 list-disc space-y-0.5 pl-5">
                   {resultado.erros.map((e) => (
                     <li key={e.linha}>
-                      Linha {e.linha}: {e.mensagem}
+                      {e.linha > 0 ? `Linha ${e.linha}: ` : ""}
+                      {e.mensagem}
                     </li>
                   ))}
                 </ul>
