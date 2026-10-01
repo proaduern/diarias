@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { desempacotar, type ResultadoAction } from "@/lib/actions/resultado";
 
 export default function BotaoExcluir({
   action,
   id,
   confirmMessage = "Tem certeza que deseja excluir?",
 }: {
-  action: (id: string) => Promise<void>;
+  action: (id: string) => Promise<ResultadoAction>;
   id: string;
   confirmMessage?: string;
 }) {
@@ -23,7 +24,7 @@ export default function BotaoExcluir({
           setErro(null);
           startTransition(async () => {
             try {
-              await action(id);
+              desempacotar(await action(id));
             } catch (err) {
               setErro(err instanceof Error ? err.message : "Erro inesperado.");
             }

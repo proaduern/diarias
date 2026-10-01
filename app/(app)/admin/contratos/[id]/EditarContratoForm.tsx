@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarContratoAction } from "@/lib/actions/contratos";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarCnpj } from "@/lib/formato";
 
 interface ContratoParaEdicao {
@@ -33,7 +34,7 @@ export default function EditarContratoForm({ contrato }: { contrato: ContratoPar
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarContratoAction(contrato.id, formData);
+            desempacotar(await atualizarContratoAction(contrato.id, formData));
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");
           }

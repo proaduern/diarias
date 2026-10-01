@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { definirValorDiariaAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 
 export default function ValorForm({
   categoriaId,
@@ -39,7 +40,7 @@ export default function ValorForm({
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await definirValorDiariaAction(formData);
+            desempacotar(await definirValorDiariaAction(formData));
             setEditando(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { emitirPortariaAction } from "@/lib/actions/portaria";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarDataHora } from "@/lib/formato";
 
 function paraInputDate(data: Date | null): string {
@@ -56,7 +57,7 @@ export default function EmitirPortariaForm({
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await emitirPortariaAction(pedidoId, formData);
+            desempacotar(await emitirPortariaAction(pedidoId, formData));
             window.location.href = `/api/pedidos/${pedidoId}/portaria`;
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

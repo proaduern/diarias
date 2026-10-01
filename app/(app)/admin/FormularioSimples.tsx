@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { desempacotar, type ResultadoAction } from "@/lib/actions/resultado";
 
 interface Campo {
   name: string;
@@ -15,7 +16,7 @@ export default function FormularioSimples({
   titulo,
   campos,
 }: {
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<ResultadoAction>;
   titulo: string;
   campos: Campo[];
 }) {
@@ -32,7 +33,7 @@ export default function FormularioSimples({
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await action(formData);
+            desempacotar(await action(formData));
             formRef.current?.reset();
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

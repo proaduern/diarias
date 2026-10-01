@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarUsuarioAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 import { formatarCpf } from "@/lib/formato";
 import type { Unidade } from "@prisma/client";
 
@@ -41,7 +42,7 @@ export default function EditarUsuarioForm({
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarUsuarioAction(usuario.id, formData);
+            desempacotar(await atualizarUsuarioAction(usuario.id, formData));
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

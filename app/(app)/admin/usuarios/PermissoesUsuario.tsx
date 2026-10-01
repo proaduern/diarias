@@ -25,7 +25,9 @@ export default function PermissoesUsuario({
           defaultChecked={podeImportarUsuarios}
           disabled={isPending}
           onChange={(e) =>
-            startTransition(() => alterarPermissaoImportarUsuariosAction(usuarioId, e.target.checked))
+            startTransition(async () => {
+              await alterarPermissaoImportarUsuariosAction(usuarioId, e.target.checked);
+            })
           }
         />
         Importar usuários (própria unidade)
@@ -36,7 +38,9 @@ export default function PermissoesUsuario({
           defaultChecked={podeEditarBeneficiarios}
           disabled={isPending}
           onChange={(e) =>
-            startTransition(() => alterarPermissaoEditarBeneficiariosAction(usuarioId, e.target.checked))
+            startTransition(async () => {
+              await alterarPermissaoEditarBeneficiariosAction(usuarioId, e.target.checked);
+            })
           }
         />
         Editar beneficiários (própria unidade)

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarConfiguracaoAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 import type { ConfiguracaoSistema } from "@prisma/client";
 
 export default function ConfiguracaoForm({ config }: { config: ConfiguracaoSistema }) {
@@ -51,7 +52,7 @@ export default function ConfiguracaoForm({ config }: { config: ConfiguracaoSiste
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarConfiguracaoAction(formData);
+            desempacotar(await atualizarConfiguracaoAction(formData));
             setSucesso(true);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

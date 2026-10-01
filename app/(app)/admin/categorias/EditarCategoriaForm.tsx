@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarCategoriaAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 
 interface CategoriaParaEdicao {
   id: string;
@@ -33,7 +34,7 @@ export default function EditarCategoriaForm({ categoria }: { categoria: Categori
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarCategoriaAction(categoria.id, formData);
+            desempacotar(await atualizarCategoriaAction(categoria.id, formData));
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

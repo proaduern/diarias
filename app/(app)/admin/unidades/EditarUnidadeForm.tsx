@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { atualizarUnidadeAction } from "@/lib/actions/admin";
+import { desempacotar } from "@/lib/actions/resultado";
 
 interface UnidadeParaEdicao {
   id: string;
@@ -30,7 +31,7 @@ export default function EditarUnidadeForm({ unidade }: { unidade: UnidadeParaEdi
         const formData = new FormData(e.currentTarget);
         startTransition(async () => {
           try {
-            await atualizarUnidadeAction(unidade.id, formData);
+            desempacotar(await atualizarUnidadeAction(unidade.id, formData));
             setAberto(false);
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");

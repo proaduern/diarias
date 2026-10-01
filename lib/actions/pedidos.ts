@@ -8,6 +8,7 @@ import { avaliarHorarioAtividade } from "@/lib/atividades";
 import { avaliarSaldoContrato } from "@/lib/saldo-contrato";
 import { lerArquivoEnviado } from "@/lib/storage";
 import { formatarMoeda } from "@/lib/formato";
+import { comTratamentoDeErro, type ResultadoAction } from "./resultado";
 import type { StatusPedido } from "@prisma/client";
 
 export type TipoPedido = "DIARIA" | "HOSPEDAGEM" | "PASSAGEM_AEREA";
@@ -84,69 +85,75 @@ function exigeValorCotado(tipo: TipoPedido): boolean {
  * oficial de valores para nenhum dos dois. Só admin (ou quem ele designar
  * no futuro) preenche.
  */
-export async function definirValorCotadoAction(tipo: TipoPedido, pedidoId: string, formData: FormData) {
-  if (!exigeValorCotado(tipo)) {
-    throw new Error("Este tipo de pedido não usa valor cotado manualmente.");
-  }
-  const sessao = await exigirAdmin();
-  const valorReais = Number(formData.get("valor") ?? "");
-  if (!Number.isFinite(valorReais) || valorReais <= 0) {
-    throw new Error("Informe um valor válido, maior que zero.");
-  }
-  const novoValorCentavos = Math.round(valorReais * 100);
+export async function definirValorCotadoAction(
+  tipo: TipoPedido,
+  pedidoId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    if (!exigeValorCotado(tipo)) {
+      throw new Error("Este tipo de pedido não usa valor cotado manualmente.");
+    }
+    const sessao = await exigirAdmin();
+    const valorReais = Number(formData.get("valor") ?? "");
+    if (!Number.isFinite(valorReais) || valorReais <= 0) {
+      throw new Error("Informe um valor válido, maior que zero.");
+    }
+    const novoValorCentavos = Math.round(valorReais * 100);
 
-  const pedido = await buscarPedido(tipo, pedidoId);
-  const contratoId = (pedido as { contratoId: string }).contratoId;
-  const unidadeId = pedido.viagem.unidadeSolicitanteId;
+    const pedido = await buscarPedido(tipo, pedidoId);
+    const contratoId = (pedido as { contratoId: string }).contratoId;
+    const unidadeId = pedido.viagem.unidadeSolicitanteId;
 
-  const contrato = await prisma.contrato.findUniqueOrThrow({ where: { id: contratoId } });
+    const contrato = await prisma.contrato.findUniqueOrThrow({ where: { id: contratoId } });
 
-  const whereConsumidoContrato = { contratoId, status: { not: "INDEFERIDO" as const }, id: { not: pedidoId } };
-  const whereConsumidoUnidade = { ...whereConsumidoContrato, viagem: { unidadeSolicitanteId: unidadeId } };
+    const whereConsumidoContrato = { contratoId, status: { not: "INDEFERIDO" as const }, id: { not: pedidoId } };
+    const whereConsumidoUnidade = { ...whereConsumidoContrato, viagem: { unidadeSolicitanteId: unidadeId } };
 
-  const [consumidoContrato, consumidoUnidade, cota] = await Promise.all([
-    Promise.all([
-      prisma.pedidoHospedagem.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
-      prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
-    ]),
-    Promise.all([
-      prisma.pedidoHospedagem.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
-      prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
-    ]),
-    prisma.cotaContratoUnidade.findUnique({ where: { contratoId_unidadeId: { contratoId, unidadeId } } }),
-  ]);
+    const [consumidoContrato, consumidoUnidade, cota] = await Promise.all([
+      Promise.all([
+        prisma.pedidoHospedagem.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
+        prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoContrato, _sum: { valorTotalCentavos: true } }),
+      ]),
+      Promise.all([
+        prisma.pedidoHospedagem.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
+        prisma.pedidoPassagemAerea.aggregate({ where: whereConsumidoUnidade, _sum: { valorTotalCentavos: true } }),
+      ]),
+      prisma.cotaContratoUnidade.findUnique({ where: { contratoId_unidadeId: { contratoId, unidadeId } } }),
+    ]);
 
-  const consumidoContratoCentavos =
-    (consumidoContrato[0]._sum.valorTotalCentavos ?? 0) + (consumidoContrato[1]._sum.valorTotalCentavos ?? 0);
-  const consumidoUnidadeCentavos =
-    (consumidoUnidade[0]._sum.valorTotalCentavos ?? 0) + (consumidoUnidade[1]._sum.valorTotalCentavos ?? 0);
+    const consumidoContratoCentavos =
+      (consumidoContrato[0]._sum.valorTotalCentavos ?? 0) + (consumidoContrato[1]._sum.valorTotalCentavos ?? 0);
+    const consumidoUnidadeCentavos =
+      (consumidoUnidade[0]._sum.valorTotalCentavos ?? 0) + (consumidoUnidade[1]._sum.valorTotalCentavos ?? 0);
 
-  const situacaoSaldo = avaliarSaldoContrato({
-    novoValorCentavos,
-    valorTotalContratoCentavos: contrato.valorTotalCentavos,
-    consumidoContratoCentavos,
-    cotaUnidadeCentavos: cota?.cotaCentavos ?? 0,
-    consumidoUnidadeCentavos,
+    const situacaoSaldo = avaliarSaldoContrato({
+      novoValorCentavos,
+      valorTotalContratoCentavos: contrato.valorTotalCentavos,
+      consumidoContratoCentavos,
+      cotaUnidadeCentavos: cota?.cotaCentavos ?? 0,
+      consumidoUnidadeCentavos,
+    });
+
+    if (situacaoSaldo.situacao === "EXCEDE_COTA_UNIDADE") {
+      throw new Error(
+        `Este valor excede a cota da unidade neste contrato (disponível: ${formatarMoeda(situacaoSaldo.cotaUnidadeDisponivel, "BRL")}).`,
+      );
+    }
+    if (situacaoSaldo.situacao === "EXCEDE_SALDO_CONTRATO") {
+      throw new Error(
+        `Este valor excede o saldo disponível do contrato (disponível: ${formatarMoeda(situacaoSaldo.saldoContratoDisponivel, "BRL")}).`,
+      );
+    }
+
+    await atualizarCampos(tipo, pedidoId, {
+      valorTotalCentavos: novoValorCentavos,
+      valorCotadoPor: sessao.userId,
+      valorCotadoEm: new Date(),
+    });
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
   });
-
-  if (situacaoSaldo.situacao === "EXCEDE_COTA_UNIDADE") {
-    throw new Error(
-      `Este valor excede a cota da unidade neste contrato (disponível: ${formatarMoeda(situacaoSaldo.cotaUnidadeDisponivel, "BRL")}).`,
-    );
-  }
-  if (situacaoSaldo.situacao === "EXCEDE_SALDO_CONTRATO") {
-    throw new Error(
-      `Este valor excede o saldo disponível do contrato (disponível: ${formatarMoeda(situacaoSaldo.saldoContratoDisponivel, "BRL")}).`,
-    );
-  }
-
-  await atualizarCampos(tipo, pedidoId, {
-    valorTotalCentavos: novoValorCentavos,
-    valorCotadoPor: sessao.userId,
-    valorCotadoEm: new Date(),
-  });
-
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
 }
 
 /**
@@ -200,19 +207,24 @@ async function reavaliarStatusPosJustificativas(tipo: TipoPedido, pedidoId: stri
   );
 }
 
-export async function aprovarJustificativaPrazoAction(tipo: TipoPedido, pedidoId: string) {
-  const sessao = await exigirAdmin();
-  const pedido = await buscarPedido(tipo, pedidoId);
+export async function aprovarJustificativaPrazoAction(
+  tipo: TipoPedido,
+  pedidoId: string,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirAdmin();
+    const pedido = await buscarPedido(tipo, pedidoId);
 
-  if (pedido.status !== "AGUARDANDO_JUSTIFICATIVA_PRAZO") {
-    throw new Error("Este pedido não está aguardando justificativa de prazo.");
-  }
+    if (pedido.status !== "AGUARDANDO_JUSTIFICATIVA_PRAZO") {
+      throw new Error("Este pedido não está aguardando justificativa de prazo.");
+    }
 
-  await atualizarCampos(tipo, pedidoId, { justificativaPrazoAceitaPor: sessao.userId });
+    await atualizarCampos(tipo, pedidoId, { justificativaPrazoAceitaPor: sessao.userId });
 
-  await reavaliarStatusPosJustificativas(tipo, pedidoId);
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
+    await reavaliarStatusPosJustificativas(tipo, pedidoId);
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
 }
 
 /**
@@ -225,158 +237,186 @@ export async function aprovarJustificativaAtividadeAction(
   tipo: TipoPedido,
   pedidoId: string,
   formData: FormData,
-) {
-  const sessao = await exigirAdmin();
-  const pedido = await buscarPedido(tipo, pedidoId);
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirAdmin();
+    const pedido = await buscarPedido(tipo, pedidoId);
 
-  if (pedido.status !== "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE") {
-    throw new Error("Este pedido não está aguardando justificativa de atividade.");
-  }
+    if (pedido.status !== "AGUARDANDO_JUSTIFICATIVA_ATIVIDADE") {
+      throw new Error("Este pedido não está aguardando justificativa de atividade.");
+    }
 
-  const justificativaGestorAtividade = String(formData.get("justificativaGestorAtividade") ?? "").trim();
-  if (!justificativaGestorAtividade) {
-    throw new Error("Informe a justificativa do gestor (sem prejuízo ao serviço e compensação dos dias de ausência).");
-  }
+    const justificativaGestorAtividade = String(formData.get("justificativaGestorAtividade") ?? "").trim();
+    if (!justificativaGestorAtividade) {
+      throw new Error("Informe a justificativa do gestor (sem prejuízo ao serviço e compensação dos dias de ausência).");
+    }
 
-  await atualizarCampos(tipo, pedidoId, {
-    justificativaGestorAtividade,
-    justificativaGestorAceitaPor: sessao.userId,
+    await atualizarCampos(tipo, pedidoId, {
+      justificativaGestorAtividade,
+      justificativaGestorAceitaPor: sessao.userId,
+    });
+
+    await reavaliarStatusPosJustificativas(tipo, pedidoId);
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
   });
-
-  await reavaliarStatusPosJustificativas(tipo, pedidoId);
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
 }
 
 /** Só diária tem deliberação de limite (Art. 15/16) — hospedagem e passagem aérea não. */
-export async function anexarComprovanteLimiteAction(pedidoId: string, formData: FormData) {
-  const { pedido } = await verificarAcessoPedido("DIARIA", pedidoId);
+export async function anexarComprovanteLimiteAction(
+  pedidoId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const { pedido } = await verificarAcessoPedido("DIARIA", pedidoId);
 
-  if (pedido.status !== "AGUARDANDO_DELIBERACAO_LIMITE") {
-    throw new Error("Este pedido não está aguardando deliberação de limite.");
-  }
+    if (pedido.status !== "AGUARDANDO_DELIBERACAO_LIMITE") {
+      throw new Error("Este pedido não está aguardando deliberação de limite.");
+    }
 
-  const arquivo = formData.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
-    throw new Error("Selecione um arquivo PDF.");
-  }
-  if (arquivo.type !== "application/pdf") {
-    throw new Error("O comprovante deve ser um arquivo PDF.");
-  }
+    const arquivo = formData.get("arquivo");
+    if (!(arquivo instanceof File) || arquivo.size === 0) {
+      throw new Error("Selecione um arquivo PDF.");
+    }
+    if (arquivo.type !== "application/pdf") {
+      throw new Error("O comprovante deve ser um arquivo PDF.");
+    }
 
-  const arquivoLido = await lerArquivoEnviado(arquivo);
+    const arquivoLido = await lerArquivoEnviado(arquivo);
 
-  await criarAnexo("DIARIA", pedidoId, {
-    tipo: "AUTORIZACAO_LIMITE",
-    nomeArquivo: arquivoLido.nomeArquivo,
-    // ArrayBuffer vs. ArrayBufferLike: mesma divergência de versão de tipos
-    // do @types/node explicada em lib/storage.ts; em runtime é um Uint8Array normal.
-    conteudo: arquivoLido.conteudo as never,
-  });
-
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-}
-
-export async function deferirLimiteAction(pedidoId: string) {
-  await exigirAdmin();
-  const pedido = await prisma.pedidoDiaria.findUniqueOrThrow({
-    where: { id: pedidoId },
-    include: { anexos: true },
-  });
-
-  if (pedido.status !== "AGUARDANDO_DELIBERACAO_LIMITE") {
-    throw new Error("Este pedido não está aguardando deliberação de limite.");
-  }
-
-  const temComprovante = pedido.anexos.some((a) => a.tipo === "AUTORIZACAO_LIMITE");
-  if (!temComprovante) {
-    throw new Error("É necessário anexar o comprovante de autorização (Art. 15/16) antes de liberar este pedido.");
-  }
-
-  await prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status: "AGUARDANDO_DEFERIMENTO" } });
-
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
-}
-
-export async function deferirPedidoAction(tipo: TipoPedido, pedidoId: string) {
-  const sessao = await exigirAdmin();
-  const pedido = await buscarPedido(tipo, pedidoId);
-
-  if (pedido.status !== "AGUARDANDO_DEFERIMENTO") {
-    throw new Error("Este pedido não está aguardando deferimento.");
-  }
-
-  if (exigeValorCotado(tipo) && "valorTotalCentavos" in pedido && pedido.valorTotalCentavos == null) {
-    throw new Error("Informe o valor cotado (fora do sistema) antes de deferir este pedido.");
-  }
-
-  await prisma.$transaction([
-    atualizarStatus(tipo, pedidoId, "DEFERIDO"),
-    criarAprovacao(tipo, pedidoId, sessao.userId, "DEFERIDO"),
-  ]);
-
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
-}
-
-export async function indeferirPedidoAction(tipo: TipoPedido, pedidoId: string, formData: FormData) {
-  const sessao = await exigirAdmin();
-  const pedido = await buscarPedido(tipo, pedidoId);
-  const motivo = String(formData.get("motivo") ?? "").trim();
-
-  if (!motivo) {
-    throw new Error("Informe o motivo do indeferimento.");
-  }
-
-  await prisma.$transaction([
-    atualizarStatus(tipo, pedidoId, "INDEFERIDO"),
-    criarAprovacao(tipo, pedidoId, sessao.userId, "INDEFERIDO", motivo),
-  ]);
-
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
-}
-
-export async function enviarRelatorioViagemAction(tipo: TipoPedido, pedidoId: string, formData: FormData) {
-  const { pedido } = await verificarAcessoPedido(tipo, pedidoId);
-
-  if (pedido.status !== "DEFERIDO") {
-    throw new Error("Só é possível enviar relatório de um pedido já deferido.");
-  }
-
-  const arquivo = formData.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
-    throw new Error("Selecione um arquivo PDF.");
-  }
-  if (arquivo.type !== "application/pdf") {
-    throw new Error("O relatório deve ser um arquivo PDF.");
-  }
-
-  const arquivoLido = await lerArquivoEnviado(arquivo);
-
-  await prisma.$transaction([
-    criarAnexo(tipo, pedidoId, {
-      tipo: "RELATORIO_VIAGEM",
+    await criarAnexo("DIARIA", pedidoId, {
+      tipo: "AUTORIZACAO_LIMITE",
       nomeArquivo: arquivoLido.nomeArquivo,
+      // ArrayBuffer vs. ArrayBufferLike: mesma divergência de versão de tipos
+      // do @types/node explicada em lib/storage.ts; em runtime é um Uint8Array normal.
       conteudo: arquivoLido.conteudo as never,
-    }),
-    atualizarCampos(tipo, pedidoId, { relatorioEnviadoEm: new Date() }),
-  ]);
+    });
 
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+  });
 }
 
-export async function regularizarPendenciaAction(tipo: TipoPedido, pedidoId: string) {
-  const sessao = await exigirAdmin();
-  const pedido = await buscarPedido(tipo, pedidoId);
+export async function deferirLimiteAction(pedidoId: string): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    await exigirAdmin();
+    const pedido = await prisma.pedidoDiaria.findUniqueOrThrow({
+      where: { id: pedidoId },
+      include: { anexos: true },
+    });
 
-  await atualizarCampos(tipo, pedidoId, {
-    pendenciaRegularizadaEm: new Date(),
-    pendenciaRegularizadaPor: sessao.userId,
+    if (pedido.status !== "AGUARDANDO_DELIBERACAO_LIMITE") {
+      throw new Error("Este pedido não está aguardando deliberação de limite.");
+    }
+
+    const temComprovante = pedido.anexos.some((a) => a.tipo === "AUTORIZACAO_LIMITE");
+    if (!temComprovante) {
+      throw new Error("É necessário anexar o comprovante de autorização (Art. 15/16) antes de liberar este pedido.");
+    }
+
+    await prisma.pedidoDiaria.update({ where: { id: pedidoId }, data: { status: "AGUARDANDO_DEFERIMENTO" } });
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
   });
+}
 
-  revalidatePath(`/pedidos/${pedido.viagemId}`);
-  revalidatePath("/pedidos");
+export async function deferirPedidoAction(tipo: TipoPedido, pedidoId: string): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirAdmin();
+    const pedido = await buscarPedido(tipo, pedidoId);
+
+    if (pedido.status !== "AGUARDANDO_DEFERIMENTO") {
+      throw new Error("Este pedido não está aguardando deferimento.");
+    }
+
+    if (exigeValorCotado(tipo) && "valorTotalCentavos" in pedido && pedido.valorTotalCentavos == null) {
+      throw new Error("Informe o valor cotado (fora do sistema) antes de deferir este pedido.");
+    }
+
+    await prisma.$transaction([
+      atualizarStatus(tipo, pedidoId, "DEFERIDO"),
+      criarAprovacao(tipo, pedidoId, sessao.userId, "DEFERIDO"),
+    ]);
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
+}
+
+export async function indeferirPedidoAction(
+  tipo: TipoPedido,
+  pedidoId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirAdmin();
+    const pedido = await buscarPedido(tipo, pedidoId);
+    const motivo = String(formData.get("motivo") ?? "").trim();
+
+    if (!motivo) {
+      throw new Error("Informe o motivo do indeferimento.");
+    }
+
+    await prisma.$transaction([
+      atualizarStatus(tipo, pedidoId, "INDEFERIDO"),
+      criarAprovacao(tipo, pedidoId, sessao.userId, "INDEFERIDO", motivo),
+    ]);
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
+}
+
+export async function enviarRelatorioViagemAction(
+  tipo: TipoPedido,
+  pedidoId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const { pedido } = await verificarAcessoPedido(tipo, pedidoId);
+
+    if (pedido.status !== "DEFERIDO") {
+      throw new Error("Só é possível enviar relatório de um pedido já deferido.");
+    }
+
+    const arquivo = formData.get("arquivo");
+    if (!(arquivo instanceof File) || arquivo.size === 0) {
+      throw new Error("Selecione um arquivo PDF.");
+    }
+    if (arquivo.type !== "application/pdf") {
+      throw new Error("O relatório deve ser um arquivo PDF.");
+    }
+
+    const arquivoLido = await lerArquivoEnviado(arquivo);
+
+    await prisma.$transaction([
+      criarAnexo(tipo, pedidoId, {
+        tipo: "RELATORIO_VIAGEM",
+        nomeArquivo: arquivoLido.nomeArquivo,
+        conteudo: arquivoLido.conteudo as never,
+      }),
+      atualizarCampos(tipo, pedidoId, { relatorioEnviadoEm: new Date() }),
+    ]);
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
+}
+
+export async function regularizarPendenciaAction(
+  tipo: TipoPedido,
+  pedidoId: string,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirAdmin();
+    const pedido = await buscarPedido(tipo, pedidoId);
+
+    await atualizarCampos(tipo, pedidoId, {
+      pendenciaRegularizadaEm: new Date(),
+      pendenciaRegularizadaPor: sessao.userId,
+    });
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
 }
