@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { criarContratoAction } from "@/lib/actions/contratos";
 import FormularioSimples from "../FormularioSimples";
 import ContratoLinha from "./ContratoLinha";
+import BotaoSincronizarSgc from "./BotaoSincronizarSgc";
 
 export default async function ContratosPage() {
   const [contratos, unidades] = await Promise.all([
@@ -23,6 +24,8 @@ export default async function ContratosPage() {
         editáveis — contratos recebem aditivos de valor/duração, ou trocam de
         empresa por completo em rescisão/não-renovação.
       </p>
+
+      <BotaoSincronizarSgc />
 
       <FormularioSimples
         action={criarContratoAction}

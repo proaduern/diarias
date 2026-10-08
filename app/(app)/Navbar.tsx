@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import { LogOut, User as UserIcon, ChevronDown, LayoutGrid } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 import type { PerfilUsuario } from "@prisma/client";
 
@@ -25,42 +25,64 @@ export default function Navbar({ nome, perfil }: { nome: string; perfil: PerfilU
         </div>
       </div>
 
-      <div className="relative">
-        <button
-          onClick={() => setAberto((v) => !v)}
-          className="flex cursor-pointer items-center space-x-3 rounded-xl p-1.5 text-left transition-colors hover:bg-slate-100"
+      <div className="flex items-center space-x-3">
+        <a
+          href="http://localhost:3001/hub"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 transition-all shadow-sm cursor-pointer"
+          title="Ir para o Hub Central de Sistemas PROAD"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 text-[#003366]">
-            <UserIcon className="h-4 w-4" />
-          </div>
-          <div className="hidden md:block">
-            <div className="text-xs font-bold leading-tight text-slate-800">{nome}</div>
-            <div className="mt-0.5 text-[11px] font-medium leading-tight text-blue-600">
-              {rotulo}
-            </div>
-          </div>
-          <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
-        </button>
+          <LayoutGrid className="w-3.5 h-3.5" />
+          <span>Portal PROAD</span>
+        </a>
 
-        {aberto && (
-          <div
-            onMouseLeave={() => setAberto(false)}
-            className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-slate-100 bg-white py-2 shadow-xl"
+        <div className="relative">
+          <button
+            onClick={() => setAberto((v) => !v)}
+            className="flex cursor-pointer items-center space-x-3 rounded-xl p-1.5 text-left transition-colors hover:bg-slate-100"
           >
-            <div className="border-b border-slate-100 px-4 py-2.5">
-              <p className="truncate text-xs font-semibold text-slate-800">{nome}</p>
-              <span className="mt-1.5 inline-block rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                {rotulo}
-              </span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 text-[#003366]">
+              <UserIcon className="h-4 w-4" />
             </div>
-            <form action={logoutAction} className="py-1">
-              <button className="flex w-full cursor-pointer items-center space-x-2 px-4 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-50">
-                <LogOut className="h-4 w-4" />
-                <span>Encerrar Sessão</span>
-              </button>
-            </form>
-          </div>
-        )}
+            <div className="hidden md:block">
+              <div className="text-xs font-bold leading-tight text-slate-800">{nome}</div>
+              <div className="mt-0.5 text-[11px] font-medium leading-tight text-blue-600">
+                {rotulo}
+              </div>
+            </div>
+            <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
+          </button>
+
+          {aberto && (
+            <div
+              onMouseLeave={() => setAberto(false)}
+              className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-slate-100 bg-white py-2 shadow-xl"
+            >
+              <div className="border-b border-slate-100 px-4 py-2.5">
+                <p className="truncate text-xs font-semibold text-slate-800">{nome}</p>
+                <span className="mt-1.5 inline-block rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                  {rotulo}
+                </span>
+              </div>
+
+              <div className="py-1">
+                <a
+                  href="http://localhost:3001/hub"
+                  className="flex w-full items-center space-x-2 px-4 py-2 text-left text-xs font-semibold text-blue-700 hover:bg-blue-50 transition-colors"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  <span>Voltar ao Portal PROAD</span>
+                </a>
+              </div>
+
+              <form action={logoutAction} className="py-1 border-t border-slate-100">
+                <button className="flex w-full cursor-pointer items-center space-x-2 px-4 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-50">
+                  <LogOut className="h-4 w-4" />
+                  <span>Encerrar Sessão</span>
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

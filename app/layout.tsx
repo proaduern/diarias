@@ -6,7 +6,11 @@ export const metadata: Metadata = {
   description: "Gestão de diárias, passagens e hospedagens da Universidade do Estado do Rio Grande do Norte",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-slate-50 font-sans">
