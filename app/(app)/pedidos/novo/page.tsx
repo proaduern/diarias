@@ -37,6 +37,28 @@ export default async function NovoPedidoPage() {
       }),
     ]);
 
+  let hosp = contratosHospedagem;
+  let aereo = contratosPassagemAerea;
+
+  if (hosp.length === 0 && aereo.length === 0) {
+    try {
+      const { sincronizarContratosSgcComDiarias } = await import("@/lib/services/sgcIntegration");
+      await sincronizarContratosSgcComDiarias();
+      [hosp, aereo] = await Promise.all([
+        prisma.contrato.findMany({
+          where: { tipoBeneficio: "HOSPEDAGEM", ativo: true },
+          orderBy: { empresaNome: "asc" },
+        }),
+        prisma.contrato.findMany({
+          where: { tipoBeneficio: "PASSAGEM_AEREA", ativo: true },
+          orderBy: { empresaNome: "asc" },
+        }),
+      ]);
+    } catch (e) {
+      console.warn("[Auto-Sync SGC Diárias] Falha no fallback:", e);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold text-slate-900">Nova solicitação</h1>
