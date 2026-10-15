@@ -39,8 +39,14 @@ export async function GET(request: NextRequest) {
 
     // 2. Mapeamento de perfil (ADMIN ou DEMANDANTE)
     const roleUpper = (role || "").toUpperCase();
+    const emailLimpo = email.toLowerCase().trim();
     const perfil: PerfilUsuario =
-      roleUpper === "ADMIN" || roleUpper === "ADMIN_PROAD" ? "ADMIN" : "DEMANDANTE";
+      roleUpper === "ADMIN" ||
+      roleUpper === "ADMIN_PROAD" ||
+      emailLimpo === "adj.proad@uern.br" ||
+      emailLimpo === "pedroreboucas@uern.br"
+        ? "ADMIN"
+        : "DEMANDANTE";
 
     // 3. Localização ou vinculação da Unidade de Lotação
     let unidadeId: string | null = null;
