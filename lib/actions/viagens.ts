@@ -445,8 +445,21 @@ export async function criarViagemComPedidosAction(
     }
 
     if (querDiaria) {
+      // SRE Concorrência: Re-avalia os limites dentro da transação atômica para blindagem contra TOCTOU
+      const pedidosExistentesTx = await tx.pedidoDiaria.findMany({
+        where: { viagem: { beneficiarioId: beneficiario.id }, status: { not: "INDEFERIDO" }, diarias: { not: null } },
+        select: { diarias: true, viagem: { select: { saidaSede: true } } },
+      });
+
+      const situacaoLimiteTx = avaliarLimites(
+        { diarias: resultadoDiaria!.diarias, saidaSede },
+        pedidosExistentesTx.map((p) => ({ diarias: Number(p.diarias), saidaSede: p.viagem.saidaSede })),
+        config.limiteMensalDiarias,
+        beneficiario.categoria.limiteAnualDias,
+      );
+
       const statusDiaria: StatusPedido =
-        statusComum ?? (situacaoLimite!.situacao !== "DENTRO_DO_LIMITE" ? "AGUARDANDO_DELIBERACAO_LIMITE" : "AGUARDANDO_DEFERIMENTO");
+        statusComum ?? (situacaoLimiteTx.situacao !== "DENTRO_DO_LIMITE" ? "AGUARDANDO_DELIBERACAO_LIMITE" : "AGUARDANDO_DEFERIMENTO");
 
       await tx.pedidoDiaria.create({
         data: {

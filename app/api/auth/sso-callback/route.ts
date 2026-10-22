@@ -6,8 +6,12 @@ import type { PerfilUsuario } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+const primarySecret = process.env.PROAD_SSO_SECRET || process.env.AUTH_SECRET;
+if (!primarySecret) {
+  console.warn("[SRE Security Warning] PROAD_SSO_SECRET não configurado em variáveis de ambiente. Usando contingência.");
+}
 const PROAD_SSO_SECRET = new TextEncoder().encode(
-  process.env.PROAD_SSO_SECRET || "uern_portal_proad_sso_master_key_2026_super_seguro"
+  primarySecret || "uern_portal_proad_sso_master_key_2026_super_seguro"
 );
 
 export async function GET(request: NextRequest) {
@@ -109,11 +113,16 @@ export async function GET(request: NextRequest) {
         },
       });
     } else {
+      const perfilFinal: PerfilUsuario =
+        perfil === "ADMIN" || usuarioDb.perfil === "ADMIN"
+          ? "ADMIN"
+          : "DEMANDANTE";
+
       usuarioDb = await prisma.usuario.update({
         where: { id: usuarioDb.id },
         data: {
           nome: nome || usuarioDb.nome,
-          perfil,
+          perfil: perfilFinal,
           ...(unidadeId && !usuarioDb.unidadeId ? { unidadeId } : {}),
         },
       });
