@@ -33,6 +33,7 @@ export default function EmitirPortariaForm({
 }) {
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
+  const [formatoEscolhido, setFormatoEscolhido] = useState<"DOCX" | "PDF">("DOCX");
 
   if (bloqueios.length > 0) {
     return (
@@ -58,7 +59,11 @@ export default function EmitirPortariaForm({
         startTransition(async () => {
           try {
             desempacotar(await emitirPortariaAction(pedidoId, formData));
-            window.location.href = `/api/pedidos/${pedidoId}/portaria`;
+            if (formatoEscolhido === "PDF") {
+              window.location.href = `/api/pedidos/${pedidoId}/portaria-pdf`;
+            } else {
+              window.location.href = `/api/pedidos/${pedidoId}/portaria`;
+            }
           } catch (err) {
             setErro(err instanceof Error ? err.message : "Erro inesperado.");
           }
@@ -128,13 +133,24 @@ export default function EmitirPortariaForm({
 
       {erro && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
-      >
-        {isPending ? "Gerando..." : "Emitir e baixar .docx"}
-      </button>
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={isPending}
+          onClick={() => setFormatoEscolhido("DOCX")}
+          className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60 cursor-pointer"
+        >
+          {isPending && formatoEscolhido === "DOCX" ? "Gerando..." : "Emitir e baixar .docx (Editável)"}
+        </button>
+        <button
+          type="submit"
+          disabled={isPending}
+          onClick={() => setFormatoEscolhido("PDF")}
+          className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60 cursor-pointer"
+        >
+          {isPending && formatoEscolhido === "PDF" ? "Gerando..." : "Emitir e baixar .pdf (Oficial)"}
+        </button>
+      </div>
     </form>
   );
 }
