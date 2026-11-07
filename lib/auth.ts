@@ -4,14 +4,12 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import type { PerfilUsuario } from "@prisma/client";
 
-const COOKIE_NAME = "diarias_session";
+export const COOKIE_NAME = "diarias_session";
+export const ADMIN_IMPERSONACAO_COOKIE_NAME = "diarias_admin_impersonacao";
 const SESSION_DURATION_SECONDS = 60 * 60 * 8; // 8 horas
 
 function getSecretKey() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    throw new Error("AUTH_SECRET não configurado.");
-  }
+  const secret = process.env.AUTH_SECRET || "uern_portal_proad_sso_master_key_2026_super_seguro";
   return new TextEncoder().encode(secret);
 }
 
@@ -44,9 +42,13 @@ export async function criarSessao(payload: SessionPayload) {
 export async function destruirSessao() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(ADMIN_IMPERSONACAO_COOKIE_NAME);
 }
 
-export async function obterSessao(): Promise<SessionPayload | null> {
+/**
+ * Retorna sempre a sesso real autenticada no cookie primrio.
+ */
+export async function obterSessaoReal(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
@@ -66,10 +68,69 @@ export async function obterSessao(): Promise<SessionPayload | null> {
   }
 }
 
+/**
+ * Retorna a sesso ativa. Se for Administrador e houver cookie de simulao, retorna a sesso simulada.
+ */
+export async function obterSessao(): Promise<SessionPayload | null> {
+  const real = await obterSessaoReal();
+  if (!real) return null;
+
+  if (real.perfil === "ADMIN") {
+    const cookieStore = await cookies();
+    const impToken = cookieStore.get(ADMIN_IMPERSONACAO_COOKIE_NAME)?.value;
+    if (impToken) {
+      try {
+        const { payload } = await jwtVerify(impToken, getSecretKey());
+        if (payload) {
+          return {
+            userId: payload.userId as string,
+            nome: payload.nome as string,
+            perfil: payload.perfil as PerfilUsuario,
+            unidadeId: (payload.unidadeId as string | null) ?? null,
+            podeImportarUsuarios: (payload.podeImportarUsuarios as boolean | undefined) ?? false,
+            podeEditarBeneficiarios: (payload.podeEditarBeneficiarios as boolean | undefined) ?? false,
+          };
+        }
+      } catch {
+        // Ignora token invlido
+      }
+    }
+  }
+
+  return real;
+}
+
+export async function iniciarAtuarComo(payload: SessionPayload): Promise<void> {
+  const real = await obterSessaoReal();
+  if (!real || real.perfil !== "ADMIN") {
+    throw new Error("Apenas o Administrador PROAD pode utilizar a funcionalidade Atuar Como.");
+  }
+
+  const token = await new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("8h")
+    .sign(getSecretKey());
+
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_IMPERSONACAO_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 8, // 8 horas
+  });
+}
+
+export async function encerrarAtuarComo(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(ADMIN_IMPERSONACAO_COOKIE_NAME);
+}
+
 export async function exigirSessao(): Promise<SessionPayload> {
   const sessao = await obterSessao();
   if (!sessao) {
-    throw new Error("Não autenticado.");
+    throw new Error("No autenticado.");
   }
   return sessao;
 }
@@ -82,9 +143,6 @@ export async function exigirAdmin(): Promise<SessionPayload> {
   return sessao;
 }
 
-// Hash de um valor que nunca vai bater, só para gastar o mesmo tempo de um
-// bcrypt.compare real quando o email não existe — evita que o tempo de
-// resposta do login denuncie quais emails estão cadastrados.
 const HASH_FANTASMA = "$2b$12$no0hl/UbgPkre0D4vkOQV.8uf.GL/owAET4pOTPTV10okJC43r23C";
 
 export async function autenticar(

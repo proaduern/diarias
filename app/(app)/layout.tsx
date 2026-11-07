@@ -1,7 +1,8 @@
-import { obterSessao } from "@/lib/auth";
+import { obterSessao, obterSessaoReal } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
+import BarraImpersonacaoAdmin from "./BarraImpersonacaoAdmin";
 
 export default async function AppLayout({
   children,
@@ -12,6 +13,8 @@ export default async function AppLayout({
   if (!sessao) {
     redirect("/login");
   }
+
+  const sessaoReal = await obterSessaoReal();
 
   const linksBase = [
     { href: "/", label: "Início" },
@@ -39,6 +42,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <BarraImpersonacaoAdmin sessaoReal={sessaoReal} sessaoAtual={sessao} />
       <Navbar nome={sessao.nome} perfil={sessao.perfil} />
       <div className="flex">
         <Sidebar links={links} perfil={sessao.perfil} />
