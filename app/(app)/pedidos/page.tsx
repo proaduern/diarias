@@ -4,6 +4,7 @@ import { obterSessao } from "@/lib/auth";
 import { formatarDataHora, formatarDiarias, formatarMoeda } from "@/lib/formato";
 
 const STATUS_LABEL: Record<string, string> = {
+  AGUARDANDO_PROCESSO_SEI: "Aguardando nº Processo SEI (Unidade)",
   AGUARDANDO_JUSTIFICATIVA_PRAZO: "Aguardando justificativa de prazo",
   AGUARDANDO_JUSTIFICATIVA_ATIVIDADE: "Aguardando justificativa do gestor",
   AGUARDANDO_DELIBERACAO_LIMITE: "Aguardando deliberação de limite",
@@ -49,62 +50,84 @@ export default async function PedidosPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Beneficiário</th>
               <th className="px-4 py-2 font-medium">Unidade</th>
+              <th className="px-4 py-2 font-medium">Processo SEI</th>
               <th className="px-4 py-2 font-medium">Saída</th>
               <th className="px-4 py-2 font-medium">Tipos / Valor</th>
               <th className="px-4 py-2 font-medium">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {viagens.map((v) => (
-              <tr key={v.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/pedidos/${v.id}`} className="text-slate-900 underline">
-                    {v.beneficiario.nome}
-                  </Link>
-                </td>
-                <td className="px-4 py-2 text-slate-600">{v.unidadeSolicitante.nome}</td>
-                <td className="px-4 py-2 text-slate-600">{formatarDataHora(v.saidaSede)}</td>
-                <td className="px-4 py-2 text-slate-600">
-                  <div className="space-y-1">
-                    {v.pedidosDiaria.map((p) => (
-                      <div key={p.id}>
-                        Diária —{" "}
-                        {p.valorTotalCentavos != null
-                          ? formatarMoeda(p.valorTotalCentavos, "BRL")
-                          : formatarDiarias(p.diarias ? Number(p.diarias) : null)}
-                      </div>
-                    ))}
-                    {v.pedidosHospedagem.map((p) => (
-                      <div key={p.id}>
-                        Hospedagem
-                        {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
-                      </div>
-                    ))}
-                    {v.pedidosPassagemAerea.map((p) => (
-                      <div key={p.id}>
-                        Passagem aérea
-                        {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
-                      </div>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-4 py-2">
-                  <div className="flex flex-col gap-1">
-                    {[...v.pedidosDiaria, ...v.pedidosHospedagem, ...v.pedidosPassagemAerea].map((p) => (
-                      <span
-                        key={p.id}
-                        className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700"
-                      >
-                        {STATUS_LABEL[p.status] ?? p.status}
+            {viagens.map((v) => {
+              const sei = v.numeroProcessoSei ?? v.pedidosDiaria[0]?.numeroProcessoSei ?? null;
+              return (
+                <tr key={v.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <Link href={`/pedidos/${v.id}`} className="font-medium text-slate-900 underline">
+                      {v.beneficiario.nome}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{v.unidadeSolicitante.nome}</td>
+                  <td className="px-4 py-2">
+                    {sei ? (
+                      <span className="inline-block rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-800">
+                        {sei}
                       </span>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    ) : (
+                      <Link
+                        href={`/pedidos/${v.id}`}
+                        className="inline-block rounded-lg bg-amber-50 border border-amber-300 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        Informar SEI p/ Concluir →
+                      </Link>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{formatarDataHora(v.saidaSede)}</td>
+                  <td className="px-4 py-2 text-slate-600">
+                    <div className="space-y-1">
+                      {v.pedidosDiaria.map((p) => (
+                        <div key={p.id}>
+                          Diária —{" "}
+                          {p.valorTotalCentavos != null
+                            ? formatarMoeda(p.valorTotalCentavos, "BRL")
+                            : formatarDiarias(p.diarias ? Number(p.diarias) : null)}
+                        </div>
+                      ))}
+                      {v.pedidosHospedagem.map((p) => (
+                        <div key={p.id}>
+                          Hospedagem
+                          {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                        </div>
+                      ))}
+                      {v.pedidosPassagemAerea.map((p) => (
+                        <div key={p.id}>
+                          Passagem aérea
+                          {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-col gap-1">
+                      {[...v.pedidosDiaria, ...v.pedidosHospedagem, ...v.pedidosPassagemAerea].map((p) => (
+                        <span
+                          key={p.id}
+                          className={`rounded-full px-2 py-1 text-xs ${
+                            p.status === "AGUARDANDO_PROCESSO_SEI"
+                              ? "bg-amber-100 text-amber-900 font-semibold"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {STATUS_LABEL[p.status] ?? p.status}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {viagens.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   Nenhuma solicitação lançada ainda.
                 </td>
               </tr>

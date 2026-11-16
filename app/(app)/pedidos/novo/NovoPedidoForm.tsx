@@ -47,6 +47,7 @@ export default function NovoPedidoForm({
   const [beneficiarioId, setBeneficiarioId] = useState("");
   const [querHospedagem, setQuerHospedagem] = useState(false);
   const [querPassagemAerea, setQuerPassagemAerea] = useState(false);
+  const [jaTemProcessoSei, setJaTemProcessoSei] = useState(false);
 
   const beneficiarioSelecionado = beneficiarios.find((b) => b.id === beneficiarioId);
   const elegivelHospedagem = beneficiarioSelecionado?.categoria.elegivelHospedagem ?? false;
@@ -420,6 +421,78 @@ export default function NovoPedidoForm({
         </div>
       </div>
 
+      {/* SEÇÃO: FORMALIZAÇÃO NO PROCESSO SEI (FLUXO SEM RETRABALHO) */}
+      <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50/50 p-4">
+        <div>
+          <span className="inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-900">
+            Fluxo Integrado Sistema + SEI (Zero Retrabalho)
+          </span>
+          <h2 className="text-sm font-bold text-slate-900 mt-1">
+            Formalização do Processo SEI pela Unidade Solicitante
+          </h2>
+          <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+            Para evitar que você tenha que digitar as mesmas informações duas vezes, ao clicar no botão abaixo o sistema{" "}
+            <strong>calculará automaticamente as diárias e gerará o PDF Oficial do Requerimento/Proposta (e o texto copiável em 1 clique)</strong>.
+            Basta inserir esse PDF no Processo SEI da sua unidade, tramitar ao{" "}
+            <strong>Setor de Diárias, Passagens e Hospedagens</strong> e informar o número do Processo SEI gerado para concluir a demanda!
+          </p>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs font-semibold text-blue-900 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={jaTemProcessoSei}
+            onChange={(e) => setJaTemProcessoSei(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+          />
+          <span>
+            Já abri o Processo SEI na minha unidade e quero informar o número agora (opcional nesta etapa)
+          </span>
+        </label>
+
+        {jaTemProcessoSei && (
+          <div className="space-y-3 rounded-xl border border-blue-200 bg-white p-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-800">
+                  Número do Processo SEI *
+                </label>
+                <input
+                  name="numeroProcessoSei"
+                  required={jaTemProcessoSei}
+                  placeholder="Ex.: 04410001.001234/2026-55"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  ID / Nº do Documento SEI da Solicitação (Opcional)
+                </label>
+                <input
+                  name="idDocumentoSei"
+                  placeholder="Ex.: 2948102"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                name="confirmouEnvioSei"
+                required={jaTemProcessoSei}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <span>
+                Confirmo que abri o Processo SEI informado acima e que irei inserir nele o PDF de Requerimento/Proposta gerado a seguir, encaminhando-o no SEI ao{" "}
+                <strong>Setor de Diárias, Passagens e Hospedagens</strong>.
+              </span>
+            </label>
+          </div>
+        )}
+      </div>
+
       {state.erro && (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.erro}
@@ -429,9 +502,13 @@ export default function NovoPedidoForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-[#003366] px-3 py-2 text-sm font-medium text-white hover:bg-[#002244] disabled:opacity-60"
+        className="w-full sm:w-auto rounded-xl bg-[#003366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#002244] disabled:opacity-60 cursor-pointer shadow-sm"
       >
-        {pending ? "Enviando..." : "Lançar solicitação"}
+        {pending
+          ? "Processando e gerando documentos..."
+          : jaTemProcessoSei
+          ? "Concluir Demanda com Processo SEI e Gerar PDF"
+          : "1. Salvar Dados e Gerar PDF/Texto Prontos para o SEI"}
       </button>
     </form>
   );

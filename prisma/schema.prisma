@@ -173,6 +173,11 @@ model Viagem {
   saidaDestino   DateTime
   chegadaSede    DateTime
 
+  // Vínculo obrigatório com o Processo SEI aberto pela unidade demandante
+  numeroProcessoSei      String?
+  idDocumentoSei         String?
+  processoSeiVinculadoEm DateTime?
+
   criadoPorId String
   criadoPor   Usuario @relation("ViagemCriadaPor", fields: [criadoPorId], references: [id])
 
@@ -247,6 +252,7 @@ model Atividade {
 // concluído) é derivada dinamicamente a partir de chegadaSede e
 // relatorioEnviadoEm (ver lib/prestacao-contas.ts) e não é armazenada aqui.
 enum StatusPedido {
+  AGUARDANDO_PROCESSO_SEI
   AGUARDANDO_JUSTIFICATIVA_PRAZO
   AGUARDANDO_JUSTIFICATIVA_ATIVIDADE
   AGUARDANDO_DELIBERACAO_LIMITE

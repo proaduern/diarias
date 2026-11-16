@@ -327,6 +327,12 @@ export async function deferirPedidoAction(tipo: TipoPedido, pedidoId: string): P
     const sessao = await exigirAdmin();
     const pedido = await buscarPedido(tipo, pedidoId);
 
+    if (pedido.status === "AGUARDANDO_PROCESSO_SEI" || !pedido.viagem.numeroProcessoSei) {
+      throw new Error(
+        "A unidade demandante ainda não vinculou o Número do Processo SEI aberto e encaminhado ao Setor de Diárias, Passagens e Hospedagens.",
+      );
+    }
+
     if (pedido.status !== "AGUARDANDO_DEFERIMENTO") {
       throw new Error("Este pedido não está aguardando deferimento.");
     }

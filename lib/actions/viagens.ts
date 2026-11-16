@@ -392,6 +392,26 @@ export async function criarViagemComPedidosAction(
     atividadesEntrada.map((a) => (a.anexo ? lerArquivoEnviado(a.anexo) : null)),
   );
 
+  // --- Dados opcionais de Processo SEI (caso o demandante já tenha aberto o processo antes) ---
+  const numeroProcessoSeiInput = String(formData.get("numeroProcessoSei") ?? "").trim() || null;
+  const idDocumentoSeiInput = String(formData.get("idDocumentoSei") ?? "").trim() || null;
+  const confirmouEnvioSei = formData.get("confirmouEnvioSei") === "on";
+
+  if (numeroProcessoSeiInput) {
+    const apenasDigitos = numeroProcessoSeiInput.replace(/\D/g, "");
+    if (apenasDigitos.length < 8) {
+      return {
+        erro: "Informe um número de Processo SEI válido (ex.: 04410001.001234/2026-55).",
+      };
+    }
+    if (!confirmouEnvioSei) {
+      return {
+        erro: "Para concluir a demanda já informando o Processo SEI, marque a confirmação de que o processo foi aberto e encaminhado ao Setor de Diárias, Passagens e Hospedagens.",
+      };
+    }
+  }
+
+  const temProcessoSeiVinculado = Boolean(numeroProcessoSeiInput && confirmouEnvioSei);
   const statusComum = statusInicialComum(situacaoPrazo, situacaoAtividade);
 
   const viagem = await prisma.$transaction(async (tx) => {
@@ -414,6 +434,9 @@ export async function criarViagemComPedidosAction(
         chegadaDestino,
         saidaDestino,
         chegadaSede,
+        numeroProcessoSei: temProcessoSeiVinculado ? numeroProcessoSeiInput : null,
+        idDocumentoSei: temProcessoSeiVinculado ? idDocumentoSeiInput : null,
+        processoSeiVinculadoEm: temProcessoSeiVinculado ? new Date() : null,
         criadoPorId: sessao.userId,
       },
     });
@@ -458,8 +481,10 @@ export async function criarViagemComPedidosAction(
         beneficiario.categoria.limiteAnualDias,
       );
 
-      const statusDiaria: StatusPedido =
+      const statusDiariaAtivo: StatusPedido =
         statusComum ?? (situacaoLimiteTx.situacao !== "DENTRO_DO_LIMITE" ? "AGUARDANDO_DELIBERACAO_LIMITE" : "AGUARDANDO_DEFERIMENTO");
+
+      const statusDiaria: StatusPedido = temProcessoSeiVinculado ? statusDiariaAtivo : "AGUARDANDO_PROCESSO_SEI";
 
       await tx.pedidoDiaria.create({
         data: {
@@ -473,12 +498,15 @@ export async function criarViagemComPedidosAction(
           status: statusDiaria,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,
+          numeroProcessoSei: temProcessoSeiVinculado ? numeroProcessoSeiInput : null,
+          idPropostaConcessao: temProcessoSeiVinculado ? idDocumentoSeiInput : null,
         },
       });
     }
 
     if (querHospedagem) {
-      const statusHospedagem: StatusPedido = statusComum ?? "AGUARDANDO_DEFERIMENTO";
+      const statusHospedagemAtivo: StatusPedido = statusComum ?? "AGUARDANDO_DEFERIMENTO";
+      const statusHospedagem: StatusPedido = temProcessoSeiVinculado ? statusHospedagemAtivo : "AGUARDANDO_PROCESSO_SEI";
 
       await tx.pedidoHospedagem.create({
         data: {
@@ -492,7 +520,8 @@ export async function criarViagemComPedidosAction(
     }
 
     if (querPassagemAerea) {
-      const statusPassagem: StatusPedido = statusComum ?? "AGUARDANDO_DEFERIMENTO";
+      const statusPassagemAtivo: StatusPedido = statusComum ?? "AGUARDANDO_DEFERIMENTO";
+      const statusPassagem: StatusPedido = temProcessoSeiVinculado ? statusPassagemAtivo : "AGUARDANDO_PROCESSO_SEI";
 
       await tx.pedidoPassagemAerea.create({
         data: {
@@ -509,5 +538,132 @@ export async function criarViagemComPedidosAction(
   });
 
   revalidatePath("/pedidos");
-  redirect(`/pedidos/${viagem.id}`);
+  revalidatePath("/");
+  redirect(`/pedidos/${viagem.id}${temProcessoSeiVinculado ? "" : "?kitSei=1"}`);
 }
+
+export async function vincularProcessoSeiConcluirDemandaAction(
+  viagemId: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  try {
+    const sessao = await exigirSessao();
+    const config = await obterConfiguracao();
+
+    const numeroProcessoSei = String(formData.get("numeroProcessoSei") ?? "").trim();
+    const idDocumentoSei = String(formData.get("idDocumentoSei") ?? "").trim() || null;
+    const confirmouEnvioSei = formData.get("confirmouEnvioSei") === "on";
+
+    if (!numeroProcessoSei || numeroProcessoSei.replace(/\D/g, "").length < 8) {
+      return {
+        ok: false,
+        erro: "Informe o número completo do Processo SEI aberto na sua unidade (ex.: 04410001.001234/2026-55).",
+      };
+    }
+
+    if (!confirmouEnvioSei) {
+      return {
+        ok: false,
+        erro: "Confirme que os documentos da demanda foram inseridos no Processo SEI e encaminhados ao Setor de Diárias, Passagens e Hospedagens.",
+      };
+    }
+
+    const viagem = await prisma.viagem.findUnique({
+      where: { id: viagemId },
+      include: {
+        beneficiario: { include: { categoria: true } },
+        atividades: true,
+        pedidosDiaria: true,
+        pedidosHospedagem: true,
+        pedidosPassagemAerea: true,
+      },
+    });
+
+    if (!viagem) {
+      return { ok: false, erro: "Solicitação de viagem não encontrada." };
+    }
+
+    if (sessao.perfil !== "ADMIN" && viagem.unidadeSolicitanteId !== sessao.unidadeId) {
+      return { ok: false, erro: "Você não tem permissão para alterar esta solicitação." };
+    }
+
+    const situacaoPrazo = avaliarPrazo(viagem.createdAt, viagem.saidaSede, config.prazoMinimoDiasAntecedencia);
+    const situacaoAtividade = avaliarHorarioAtividade(
+      { chegadaDestino: viagem.chegadaDestino, saidaDestino: viagem.saidaDestino },
+      viagem.atividades,
+    );
+    const statusComum = statusInicialComum(situacaoPrazo, situacaoAtividade);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.viagem.update({
+        where: { id: viagemId },
+        data: {
+          numeroProcessoSei,
+          idDocumentoSei,
+          processoSeiVinculadoEm: new Date(),
+        },
+      });
+
+      for (const pd of viagem.pedidosDiaria) {
+        let novoStatus = pd.status;
+        if (pd.status === "AGUARDANDO_PROCESSO_SEI") {
+          const pedidosExistentesTx = await tx.pedidoDiaria.findMany({
+            where: {
+              viagem: { beneficiarioId: viagem.beneficiarioId },
+              status: { not: "INDEFERIDO" },
+              diarias: { not: null },
+              id: { not: pd.id },
+            },
+            select: { diarias: true, viagem: { select: { saidaSede: true } } },
+          });
+
+          const situacaoLimiteTx = avaliarLimites(
+            { diarias: Number(pd.diarias ?? 0), saidaSede: viagem.saidaSede },
+            pedidosExistentesTx.map((p) => ({ diarias: Number(p.diarias), saidaSede: p.viagem.saidaSede })),
+            config.limiteMensalDiarias,
+            viagem.beneficiario.categoria.limiteAnualDias,
+          );
+
+          novoStatus =
+            statusComum ??
+            (situacaoLimiteTx.situacao !== "DENTRO_DO_LIMITE"
+              ? "AGUARDANDO_DELIBERACAO_LIMITE"
+              : "AGUARDANDO_DEFERIMENTO");
+        }
+
+        await tx.pedidoDiaria.update({
+          where: { id: pd.id },
+          data: {
+            status: novoStatus,
+            numeroProcessoSei,
+            idPropostaConcessao: idDocumentoSei ?? pd.idPropostaConcessao,
+          },
+        });
+      }
+
+      for (const ph of viagem.pedidosHospedagem) {
+        const novoStatus = ph.status === "AGUARDANDO_PROCESSO_SEI" ? (statusComum ?? "AGUARDANDO_DEFERIMENTO") : ph.status;
+        await tx.pedidoHospedagem.update({
+          where: { id: ph.id },
+          data: { status: novoStatus },
+        });
+      }
+
+      for (const pp of viagem.pedidosPassagemAerea) {
+        const novoStatus = pp.status === "AGUARDANDO_PROCESSO_SEI" ? (statusComum ?? "AGUARDANDO_DEFERIMENTO") : pp.status;
+        await tx.pedidoPassagemAerea.update({
+          where: { id: pp.id },
+          data: { status: novoStatus },
+        });
+      }
+    });
+
+    revalidatePath(`/pedidos/${viagemId}`);
+    revalidatePath("/pedidos");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : "Erro ao vincular Processo SEI." };
+  }
+}
+

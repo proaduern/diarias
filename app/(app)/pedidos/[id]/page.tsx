@@ -5,9 +5,16 @@ import { formatarCpf, formatarDataHora, formatarDiarias, formatarMoeda } from "@
 import { avaliarPrestacaoContas, type SituacaoPrestacaoContas } from "@/lib/prestacao-contas";
 import AcoesPedido from "./AcoesPedido";
 import EmitirPortariaForm from "./EmitirPortariaForm";
+import PainelKitSeiViagem from "./PainelKitSeiViagem";
+import {
+  gerarTextoCopiavelParaSei,
+  obterBeneficiosSolicitadosLabel,
+  type DadosRequerimentoViagemSei,
+} from "@/lib/requerimento-sei-pdf";
 import type { TipoPedido } from "@/lib/actions/pedidos";
 
 const STATUS_LABEL: Record<string, string> = {
+  AGUARDANDO_PROCESSO_SEI: "Aguardando vínculo do Processo SEI pela Unidade",
   AGUARDANDO_JUSTIFICATIVA_PRAZO: "Aguardando justificativa de prazo",
   AGUARDANDO_JUSTIFICATIVA_ATIVIDADE: "Aguardando justificativa do gestor (folga de atividade)",
   AGUARDANDO_DELIBERACAO_LIMITE: "Aguardando deliberação de limite (Art. 15/16)",
@@ -100,6 +107,94 @@ export default async function ViagemDetalhePage({
     })),
   ];
 
+  const pDiaria = viagem.pedidosDiaria[0] ?? null;
+  const pHosp = viagem.pedidosHospedagem[0] ?? null;
+  const pPass = viagem.pedidosPassagemAerea[0] ?? null;
+
+  const numeroProcessoSeiEfetivo = viagem.numeroProcessoSei ?? pDiaria?.numeroProcessoSei ?? null;
+  const idDocumentoSeiEfetivo = viagem.idDocumentoSei ?? pDiaria?.idPropostaConcessao ?? null;
+  const aguardandoProcessoSei =
+    !numeroProcessoSeiEfetivo ||
+    pedidos.some(({ pedido }) => pedido.status === "AGUARDANDO_PROCESSO_SEI");
+
+  const dadosKitSei: DadosRequerimentoViagemSei = {
+    viagemId: viagem.id,
+    numeroProcessoSei: numeroProcessoSeiEfetivo,
+    idDocumentoSei: idDocumentoSeiEfetivo,
+    criadoEm: viagem.createdAt,
+    unidadeSolicitante: {
+      nome: viagem.unidadeSolicitante.nome,
+      email: viagem.unidadeSolicitante.email,
+    },
+    beneficiario: {
+      nome: viagem.beneficiario.nome,
+      cpf: viagem.beneficiario.cpf,
+      matricula: viagem.beneficiario.matricula,
+      cargo: viagem.beneficiario.cargo,
+      categoriaNome: viagem.beneficiario.categoria.nome,
+      banco: viagem.beneficiario.banco,
+      agencia: viagem.beneficiario.agencia,
+      contaCorrente: viagem.beneficiario.contaCorrente,
+    },
+    roteiro: {
+      sedeCidade: viagem.sedeCidade,
+      sedeEstado: viagem.sedeEstado,
+      municipioDestino: viagem.municipioDestino,
+      destinoEstado: viagem.destinoEstado,
+      kmDeclarado: viagem.kmDeclarado,
+      vaiBuscarAeroporto: viagem.vaiBuscarAeroporto,
+      kmSedeAeroporto: viagem.kmSedeAeroporto,
+      kmVoo: viagem.kmVoo,
+      kmAeroportoDestino: viagem.kmAeroportoDestino,
+      tempoViagemEstimadoMinutos: viagem.tempoViagemEstimadoMinutos,
+      saidaSede: viagem.saidaSede,
+      chegadaDestino: viagem.chegadaDestino,
+      saidaDestino: viagem.saidaDestino,
+      chegadaSede: viagem.chegadaSede,
+      finalidade: viagem.finalidade,
+    },
+    atividades: viagem.atividades.map((a) => ({
+      categoria: a.enquadramento.categoria,
+      enquadramentoNome: a.enquadramento.nome,
+      descricao: a.descricao,
+      detalhamento: a.detalhamento,
+      dataHoraInicio: a.dataHoraInicio,
+      dataHoraFim: a.dataHoraFim,
+      anexosNomes: a.anexos.map((ax) => ax.nomeArquivo),
+    })),
+    pedidoDiaria: pDiaria
+      ? {
+          id: pDiaria.id,
+          tipoDestinoNome: pDiaria.tipoDestino.nome,
+          noites: pDiaria.noites,
+          ultimaNoiteQualifica: pDiaria.ultimaNoiteQualifica,
+          diarias: pDiaria.diarias ? Number(pDiaria.diarias) : null,
+          valorUnitarioCentavos: pDiaria.valorUnitarioCentavos,
+          valorTotalCentavos: pDiaria.valorTotalCentavos,
+          justificativaPrazoCurto: pDiaria.justificativaPrazoCurto,
+          justificativaGestorAtividade: pDiaria.justificativaGestorAtividade,
+        }
+      : null,
+    pedidoHospedagem: pHosp
+      ? {
+          id: pHosp.id,
+          empresaNome: pHosp.contrato.empresaNome,
+          numeroContrato: pHosp.contrato.numeroContrato,
+          valorTotalCentavos: pHosp.valorTotalCentavos,
+          justificativaPrazoCurto: pHosp.justificativaPrazoCurto,
+        }
+      : null,
+    pedidoPassagemAerea: pPass
+      ? {
+          id: pPass.id,
+          empresaNome: pPass.contrato.empresaNome,
+          numeroContrato: pPass.contrato.numeroContrato,
+          valorTotalCentavos: pPass.valorTotalCentavos,
+          justificativaPrazoCurto: pPass.justificativaPrazoCurto,
+        }
+      : null,
+  };
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -110,13 +205,31 @@ export default async function ViagemDetalhePage({
           {pedidos.map(({ tipo, label, pedido }) => (
             <span
               key={tipo}
-              className="inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700"
+              className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${
+                pedido.status === "AGUARDANDO_PROCESSO_SEI"
+                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                  : "bg-slate-100 text-slate-700"
+              }`}
             >
               {label}: {STATUS_LABEL[pedido.status] ?? pedido.status}
             </span>
           ))}
         </div>
       </div>
+
+      {/* PAINEL DO KIT AUTOMÁTICO SEI + VÍNCULO OBRIGATÓRIO DO PROCESSO SEI */}
+      <PainelKitSeiViagem
+        viagemId={viagem.id}
+        numeroProcessoSeiAtual={numeroProcessoSeiEfetivo}
+        idDocumentoSeiAtual={idDocumentoSeiEfetivo}
+        processoSeiVinculadoEm={viagem.processoSeiVinculadoEm}
+        aguardandoProcessoSei={aguardandoProcessoSei}
+        beneficiarioNome={viagem.beneficiario.nome}
+        beneficiarioCpfFormatado={formatarCpf(viagem.beneficiario.cpf)}
+        destinoFormatado={`${viagem.municipioDestino}/${viagem.destinoEstado}`}
+        beneficiosLabel={obterBeneficiosSolicitadosLabel(dadosKitSei)}
+        textoCopiavelSei={gerarTextoCopiavelParaSei(dadosKitSei)}
+      />
 
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-white shadow-sm p-4 sm:grid-cols-2">
         <Campo label="Beneficiário" valor={viagem.beneficiario.nome} />
@@ -305,8 +418,8 @@ export default async function ViagemDetalhePage({
               <EmitirPortariaForm
                 pedidoId={pedido.id}
                 valoresIniciais={{
-                  numeroProcessoSei: pedido.numeroProcessoSei,
-                  idPropostaConcessao: pedido.idPropostaConcessao,
+                  numeroProcessoSei: pedido.numeroProcessoSei ?? viagem.numeroProcessoSei,
+                  idPropostaConcessao: pedido.idPropostaConcessao ?? viagem.idDocumentoSei,
                   portariaNumero: pedido.portariaNumero,
                   portariaData: pedido.portariaData,
                 }}
