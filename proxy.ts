@@ -15,8 +15,8 @@ export async function proxy(request: NextRequest) {
 
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/static")
+    pathname.startsWith("/static") ||
+    pathname.startsWith("/api/auth/sso-callback")
   ) {
     return NextResponse.next();
   }
@@ -31,6 +31,13 @@ export async function proxy(request: NextRequest) {
     } catch {
       autenticado = false;
     }
+  }
+
+  if (pathname.startsWith("/api/")) {
+    if (!autenticado) {
+      return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
+    }
+    return NextResponse.next();
   }
 
   const ehPublica = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
