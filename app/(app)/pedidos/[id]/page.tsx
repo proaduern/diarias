@@ -6,6 +6,8 @@ import { avaliarPrestacaoContas, type SituacaoPrestacaoContas } from "@/lib/pres
 import AcoesPedido from "./AcoesPedido";
 import EmitirPortariaForm from "./EmitirPortariaForm";
 import PainelKitSeiViagem from "./PainelKitSeiViagem";
+import ModalAlterarProgramacao from "./ModalAlterarProgramacao";
+import { CalendarClock, Coins, RotateCcw } from "lucide-react";
 import {
   gerarTextoCopiavelParaSei,
   obterBeneficiosSolicitadosLabel,
@@ -45,13 +47,17 @@ export default async function ViagemDetalhePage({
   const sessao = await obterSessao();
   if (!sessao) return null;
 
-  const [viagem, config] = await Promise.all([
+  const [viagem, config, enquadramentos] = await Promise.all([
     prisma.viagem.findUnique({
       where: { id },
       include: {
         beneficiario: { include: { categoria: true } },
         unidadeSolicitante: true,
         criadoPor: true,
+        alteracoes: {
+          include: { solicitadoPor: true, analisadoPor: true, anexos: true },
+          orderBy: { createdAt: "desc" },
+        },
         atividades: {
           include: { enquadramento: true, anexos: true },
           orderBy: { dataHoraInicio: "asc" },
@@ -80,6 +86,7 @@ export default async function ViagemDetalhePage({
       },
     }),
     prisma.configuracaoSistema.findUnique({ where: { id: 1 } }),
+    prisma.enquadramentoAtividade.findMany({ where: { ativo: true }, orderBy: { ordem: "asc" } }),
   ]);
 
   if (!viagem || !config) notFound();
@@ -122,6 +129,7 @@ export default async function ViagemDetalhePage({
     numeroProcessoSei: numeroProcessoSeiEfetivo,
     idDocumentoSei: idDocumentoSeiEfetivo,
     criadoEm: viagem.createdAt,
+    retificadaEm: viagem.retificadaEm,
     unidadeSolicitante: {
       nome: viagem.unidadeSolicitante.nome,
       email: viagem.unidadeSolicitante.email,
@@ -197,25 +205,102 @@ export default async function ViagemDetalhePage({
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">
-          Solicitação de viagem — {viagem.beneficiario.nome}
-        </h1>
-        <div className="mt-1 flex flex-wrap gap-2">
-          {pedidos.map(({ tipo, label, pedido }) => (
-            <span
-              key={tipo}
-              className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${
-                pedido.status === "AGUARDANDO_PROCESSO_SEI"
-                  ? "bg-amber-100 text-amber-900 border border-amber-300"
-                  : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {label}: {STATUS_LABEL[pedido.status] ?? pedido.status}
-            </span>
-          ))}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">
+            Solicitação de viagem — {viagem.beneficiario.nome}
+          </h1>
+          <div className="mt-1 flex flex-wrap gap-2 items-center">
+            {pedidos.map(({ tipo, label, pedido }) => (
+              <span
+                key={tipo}
+                className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${
+                  pedido.status === "AGUARDANDO_PROCESSO_SEI"
+                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {label}: {STATUS_LABEL[pedido.status] ?? pedido.status}
+              </span>
+            ))}
+            {viagem.retificadaEm && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-900">
+                <CalendarClock className="h-3 w-3 text-blue-700" />
+                Programação Retificada
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Modal de Ajuste de Programação / Percurso */}
+        <ModalAlterarProgramacao
+          viagemId={viagem.id}
+          jaDeferido={pedidos.some(({ pedido }) => pedido.status === "DEFERIDO")}
+          saidaSedeAtual={viagem.saidaSede}
+          chegadaDestinoAtual={viagem.chegadaDestino}
+          saidaDestinoAtual={viagem.saidaDestino}
+          chegadaSedeAtual={viagem.chegadaSede}
+          atividadesAtuais={viagem.atividades.map((a) => ({
+            id: a.id,
+            enquadramentoId: a.enquadramentoId,
+            descricao: a.descricao,
+            detalhamento: a.detalhamento,
+            dataHoraInicio: a.dataHoraInicio,
+            dataHoraFim: a.dataHoraFim,
+          }))}
+          enquadramentos={enquadramentos}
+        />
       </div>
+
+      {/* Alerta de Diária Complementar por Prorrogação de Percurso */}
+      {pDiaria?.valorComplementarCentavos != null && pDiaria.valorComplementarCentavos > 0 && (
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 shadow-xs flex items-start gap-3">
+          <div className="rounded-full bg-emerald-100 p-2 text-emerald-800">
+            <Coins className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-emerald-950">
+              Diária Complementar Apurada (Prorrogação de Viagem)
+            </h3>
+            <p className="text-xs text-emerald-900 mt-0.5">
+              Em decorrência da ampliação do período de afastamento, foi apurado acréscimo de{" "}
+              <strong>{formatarMoeda(pDiaria.valorComplementarCentavos, "BRL")}</strong> para
+              complementação de diárias do beneficiário.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de Devolução ao Erário por Retorno Antecipado */}
+      {pDiaria?.valorDevolucaoCentavos != null && pDiaria.valorDevolucaoCentavos > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-xs flex items-start gap-3">
+          <div className="rounded-full bg-amber-100 p-2 text-amber-800">
+            <RotateCcw className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-amber-950">
+              Devolução ao Erário Necessária (Retorno Antecipado / Redução de Percurso)
+            </h3>
+            <p className="text-xs text-amber-900">
+              Devido à redução dos dias da viagem, o beneficiário recebeu a maior o valor de{" "}
+              <strong>{formatarMoeda(pDiaria.valorDevolucaoCentavos, "BRL")}</strong>, devendo ser
+              restituído ao erário estadual conforme o Art. 33 a 39 do Decreto Estadual nº 29.444/2020.
+            </p>
+            <p className="text-xs font-semibold text-amber-950">
+              Situação da Devolução:{" "}
+              {pDiaria.devolucaoConfirmadaEm ? (
+                <span className="text-emerald-800 font-bold">
+                  ✓ Comprovante anexado em {formatarDataHora(pDiaria.devolucaoConfirmadaEm)}
+                </span>
+              ) : (
+                <span className="text-red-700 font-bold">
+                  ⚠ Aguardando envio do comprovante bancário/GRU pelo beneficiário ou unidade
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* PAINEL DO KIT AUTOMÁTICO SEI + VÍNCULO OBRIGATÓRIO DO PROCESSO SEI */}
       <PainelKitSeiViagem
@@ -297,7 +382,14 @@ export default async function ViagemDetalhePage({
         const situacaoPrestacao: SituacaoPrestacaoContas | null =
           pedido.status === "DEFERIDO"
             ? avaliarPrestacaoContas(
-                { chegadaSede: viagem.chegadaSede, relatorioEnviadoEm: pedido.relatorioEnviadoEm },
+                {
+                  chegadaSede: viagem.chegadaSede,
+                  relatorioEnviadoEm: pedido.relatorioEnviadoEm,
+                  valorDevolucaoCentavos:
+                    "valorDevolucaoCentavos" in pedido ? pedido.valorDevolucaoCentavos : null,
+                  devolucaoConfirmadaEm:
+                    "devolucaoConfirmadaEm" in pedido ? pedido.devolucaoConfirmadaEm : null,
+                },
                 new Date(),
                 config.prazoRelatorioDiasUteis,
                 config.prazoDevolucaoDiasCorridos,
@@ -306,6 +398,7 @@ export default async function ViagemDetalhePage({
 
         const comprovanteLimite = pedido.anexos.find((a) => a.tipo === "AUTORIZACAO_LIMITE");
         const relatorioViagem = pedido.anexos.find((a) => a.tipo === "RELATORIO_VIAGEM");
+        const comprovanteDevolucao = pedido.anexos.find((a) => a.tipo === "COMPROVANTE_DEVOLUCAO_DIARIA");
 
         return (
           <section
@@ -329,13 +422,25 @@ export default async function ViagemDetalhePage({
                   valor={formatarDiarias(pedido.diarias ? Number(pedido.diarias) : null)}
                 />
                 <Campo
-                  label="Valor total"
+                  label="Valor total concedido"
                   valor={
                     pedido.valorTotalCentavos != null
                       ? formatarMoeda(pedido.valorTotalCentavos, "BRL")
                       : "-"
                   }
                 />
+                {pedido.valorComplementarCentavos != null && pedido.valorComplementarCentavos > 0 && (
+                  <Campo
+                    label="Diária complementar apurada"
+                    valor={`+ ${formatarMoeda(pedido.valorComplementarCentavos, "BRL")} (Prorrogação de Percurso)`}
+                  />
+                )}
+                {pedido.valorDevolucaoCentavos != null && pedido.valorDevolucaoCentavos > 0 && (
+                  <Campo
+                    label="Valor a devolver ao erário"
+                    valor={`- ${formatarMoeda(pedido.valorDevolucaoCentavos, "BRL")} (Retorno Antecipado)`}
+                  />
+                )}
               </div>
             )}
 
@@ -383,6 +488,23 @@ export default async function ViagemDetalhePage({
                     </a>
                   </p>
                 )}
+                {comprovanteDevolucao && (
+                  <p className="mt-1 text-xs text-emerald-700 font-semibold">
+                    Comprovante de devolução ao erário anexado em{" "}
+                    {"devolucaoConfirmadaEm" in pedido && pedido.devolucaoConfirmadaEm
+                      ? formatarDataHora(pedido.devolucaoConfirmadaEm)
+                      : "data registrada"}
+                    .{" "}
+                    <a
+                      href={`/api/anexos/${comprovanteDevolucao.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-emerald-900"
+                    >
+                      Abrir {comprovanteDevolucao.nomeArquivo}
+                    </a>
+                  </p>
+                )}
               </div>
             )}
 
@@ -408,6 +530,10 @@ export default async function ViagemDetalhePage({
                 relatorioEnviadoEm: pedido.relatorioEnviadoEm,
                 pendenciaRegularizadaEm: pedido.pendenciaRegularizadaEm,
                 valorTotalCentavos: "valorCotadoEm" in pedido ? pedido.valorTotalCentavos : undefined,
+                valorDevolucaoCentavos:
+                  "valorDevolucaoCentavos" in pedido ? pedido.valorDevolucaoCentavos : undefined,
+                devolucaoConfirmadaEm:
+                  "devolucaoConfirmadaEm" in pedido ? pedido.devolucaoConfirmadaEm : undefined,
               }}
               situacaoPrestacao={situacaoPrestacao?.situacao ?? null}
               ehAdmin={ehAdmin}
@@ -459,6 +585,82 @@ export default async function ViagemDetalhePage({
           </section>
         );
       })}
+
+      {/* HISTÓRICO DE ALTERAÇÕES DE PROGRAMAÇÃO DA VIAGEM */}
+      {viagem.alteracoes.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-amber-700" />
+            <h2 className="text-sm font-semibold text-slate-900">
+              Histórico de Alterações de Programação / Percurso
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-100 space-y-3">
+            {viagem.alteracoes.map((alt) => (
+              <div key={alt.id} className="pt-3 first:pt-0 space-y-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800">
+                    Alteração registrada por {alt.solicitadoPor.nome} em {formatarDataHora(alt.createdAt)}
+                  </span>
+                  {alt.diferencaCentavos != null && alt.diferencaCentavos !== 0 && (
+                    <span
+                      className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                        alt.diferencaCentavos > 0
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                          : "bg-amber-100 text-amber-900 border border-amber-300"
+                      }`}
+                    >
+                      {alt.diferencaCentavos > 0
+                        ? `Complemento: +${formatarMoeda(alt.diferencaCentavos, "BRL")}`
+                        : `Devolução: -${formatarMoeda(Math.abs(alt.diferencaCentavos), "BRL")}`}
+                    </span>
+                  )}
+                </div>
+                <div className="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                  <span className="font-semibold text-slate-600 block mb-0.5">
+                    Motivo / Justificativa informada:
+                  </span>
+                  {alt.motivo}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600 bg-slate-50/60 p-2.5 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Cronograma Anterior:</span>
+                    Saída sede: {formatarDataHora(alt.saidaSedeAnterior)} <br />
+                    Retorno sede: {formatarDataHora(alt.chegadaSedeAnterior)}
+                    {alt.diariasAnteriores != null && (
+                      <span className="block mt-0.5 text-slate-500">
+                        Diárias: {formatarDiarias(Number(alt.diariasAnteriores))}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Cronograma Retificado:</span>
+                    Saída sede: {formatarDataHora(alt.saidaSedeNova)} <br />
+                    Retorno sede: {formatarDataHora(alt.chegadaSedeNova)}
+                    {alt.diariasNovas != null && (
+                      <span className="block mt-0.5 text-slate-500">
+                        Diárias: {formatarDiarias(Number(alt.diariasNovas))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {alt.anexos.map((anexo) => (
+                  <p key={anexo.id} className="text-xs">
+                    <a
+                      href={`/api/anexos/${anexo.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-700 underline font-medium hover:text-blue-900"
+                    >
+                      Visualizar documento comprobatório: {anexo.nomeArquivo}
+                    </a>
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

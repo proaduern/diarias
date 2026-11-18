@@ -667,3 +667,283 @@ export async function vincularProcessoSeiConcluirDemandaAction(
   }
 }
 
+export async function alterarProgramacaoViagemAction(
+  viagemId: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  try {
+    const sessao = await exigirSessao();
+    const config = await obterConfiguracao();
+
+    const motivoAlteracao = String(formData.get("motivoAlteracao") ?? "").trim();
+    if (!motivoAlteracao) {
+      return { ok: false, erro: "Informe a justificativa/motivo da alteração de programação da viagem." };
+    }
+
+    const saidaSede = parseDataHora(formData.get("saidaSede"));
+    const chegadaDestino = parseDataHora(formData.get("chegadaDestino"));
+    const saidaDestino = parseDataHora(formData.get("saidaDestino"));
+    const chegadaSede = parseDataHora(formData.get("chegadaSede"));
+
+    if (!saidaSede || !chegadaDestino || !saidaDestino || !chegadaSede) {
+      return { ok: false, erro: "Preencha todas as datas e horários da nova programação." };
+    }
+
+    if (
+      !(saidaSede <= chegadaDestino) ||
+      !(chegadaDestino <= saidaDestino) ||
+      !(saidaDestino <= chegadaSede)
+    ) {
+      return {
+        ok: false,
+        erro: "As datas/horas precisam seguir a ordem: saída da sede ≤ chegada ao destino ≤ saída do destino ≤ chegada à sede.",
+      };
+    }
+
+    const viagem = await prisma.viagem.findUnique({
+      where: { id: viagemId },
+      include: {
+        beneficiario: { include: { categoria: true } },
+        atividades: true,
+        pedidosDiaria: true,
+        pedidosHospedagem: true,
+        pedidosPassagemAerea: true,
+      },
+    });
+
+    if (!viagem) {
+      return { ok: false, erro: "Solicitação de viagem não encontrada." };
+    }
+
+    if (sessao.perfil !== "ADMIN" && viagem.unidadeSolicitanteId !== sessao.unidadeId) {
+      return { ok: false, erro: "Você não tem permissão para alterar esta solicitação." };
+    }
+
+    // Comprovante opcional/recomendado em anexo
+    const anexoBruto = formData.get("comprovanteAlteracao");
+    let comprovanteLido: { nomeArquivo: string; conteudo: Uint8Array } | null = null;
+    if (anexoBruto instanceof File && anexoBruto.size > 0) {
+      comprovanteLido = await lerArquivoEnviado(anexoBruto);
+    }
+
+    // Verifica se novas atividades foram enviadas
+    const qtdAtividades = Number(formData.get("quantidadeAtividades") ?? 0);
+    let novasAtividades: AtividadeEntrada[] | null = null;
+    let anexosNovosLidos: ({ nomeArquivo: string; conteudo: Uint8Array } | null)[] = [];
+
+    if (qtdAtividades > 0) {
+      const atividadesOuErro = parseAtividades(formData);
+      if ("erro" in atividadesOuErro) {
+        return { ok: false, erro: atividadesOuErro.erro };
+      }
+      novasAtividades = atividadesOuErro;
+
+      const enquadramentos = await prisma.enquadramentoAtividade.findMany({
+        where: { id: { in: novasAtividades.map((a) => a.enquadramentoId) } },
+      });
+      const enquadramentoPorId = new Map(enquadramentos.map((e) => [e.id, e]));
+
+      for (let i = 0; i < novasAtividades.length; i++) {
+        const a = novasAtividades[i];
+        const enq = enquadramentoPorId.get(a.enquadramentoId);
+        if (!enq || !enq.ativo) {
+          return { ok: false, erro: `O enquadramento selecionado na atividade ${i + 1} não é válido.` };
+        }
+        if (enq.exigeDetalhamento && !a.detalhamento) {
+          return { ok: false, erro: `A atividade ${i + 1} (${enq.nome}) exige detalhamento.` };
+        }
+      }
+
+      const situacaoAtiv = avaliarHorarioAtividade({ chegadaDestino, saidaDestino }, novasAtividades);
+      if (situacaoAtiv.situacao === "BLOQUEADO_CHEGADA_APOS_INICIO") {
+        return {
+          ok: false,
+          erro: "A chegada ao destino não pode ser depois do início da atividade mais cedo.",
+        };
+      }
+      if (situacaoAtiv.situacao === "BLOQUEADO_SAIDA_ANTES_FIM") {
+        return {
+          ok: false,
+          erro: "A saída do destino não pode ser antes do fim da atividade mais tarde.",
+        };
+      }
+
+      anexosNovosLidos = await Promise.all(
+        novasAtividades.map((a) => (a.anexo ? lerArquivoEnviado(a.anexo) : null)),
+      );
+    }
+
+    const jaDeferido =
+      viagem.pedidosDiaria.some((p) => p.status === "DEFERIDO") ||
+      viagem.pedidosHospedagem.some((p) => p.status === "DEFERIDO") ||
+      viagem.pedidosPassagemAerea.some((p) => p.status === "DEFERIDO");
+
+    // Recalcula diárias
+    const pd = viagem.pedidosDiaria[0] ?? null;
+    let resultadoDiaria: ReturnType<typeof calcularDiarias> | null = null;
+    let novoValorDiariaTotal: number | null = null;
+    let valorAnteriorCentavos = pd?.valorTotalCentavos ?? 0;
+    let diferencaCentavos = 0;
+
+    if (pd) {
+      resultadoDiaria = calcularDiarias(
+        { saidaSede, chegadaDestino, saidaDestino, chegadaSede, kmDeclarado: viagem.kmDeclarado },
+        { kmMinimoSemPernoite: config.kmMinimoSemPernoite, duracaoMinimaHoras: config.duracaoMinimaHoras },
+      );
+
+      if (resultadoDiaria.diarias === 0) {
+        return {
+          ok: false,
+          erro: "A nova programação não atinge a duração ou distância mínima exigida para concessão de diárias.",
+        };
+      }
+
+      const valorUnitario = pd.valorUnitarioCentavos ?? 0;
+      novoValorDiariaTotal = Math.round(resultadoDiaria.diarias * valorUnitario);
+      diferencaCentavos = novoValorDiariaTotal - valorAnteriorCentavos;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Atualiza dados da Viagem
+      await tx.viagem.update({
+        where: { id: viagemId },
+        data: {
+          saidaSede,
+          chegadaDestino,
+          saidaDestino,
+          chegadaSede,
+          retificadaEm: new Date(),
+        },
+      });
+
+      // 2. Se novas atividades foram informadas, recria as atividades
+      if (novasAtividades && novasAtividades.length > 0) {
+        // Exclui atividades antigas (anexos das atividades são deletados por cascata ou órfãos)
+        await tx.anexo.deleteMany({
+          where: { atividadeId: { in: viagem.atividades.map((a) => a.id) } },
+        });
+        await tx.atividade.deleteMany({ where: { viagemId } });
+
+        for (let i = 0; i < novasAtividades.length; i++) {
+          const a = novasAtividades[i];
+          const ativCriada = await tx.atividade.create({
+            data: {
+              viagemId,
+              enquadramentoId: a.enquadramentoId,
+              descricao: a.descricao,
+              detalhamento: a.detalhamento,
+              dataHoraInicio: a.dataHoraInicio,
+              dataHoraFim: a.dataHoraFim,
+            },
+          });
+          const arq = anexosNovosLidos[i];
+          if (arq) {
+            await tx.anexo.create({
+              data: {
+                atividadeId: ativCriada.id,
+                tipo: "COMPROVANTE_ATIVIDADE",
+                nomeArquivo: arq.nomeArquivo,
+                conteudo: arq.conteudo as never,
+              },
+            });
+          }
+        }
+      }
+
+      // 3. Atualiza PedidoDiaria
+      if (pd && resultadoDiaria && novoValorDiariaTotal != null) {
+        if (jaDeferido) {
+          await tx.pedidoDiaria.update({
+            where: { id: pd.id },
+            data: {
+              noites: resultadoDiaria.noites,
+              ultimaNoiteQualifica: resultadoDiaria.ultimaNoiteQualifica,
+              diarias: resultadoDiaria.diarias,
+              valorTotalCentavos: novoValorDiariaTotal,
+              valorComplementarCentavos: diferencaCentavos > 0 ? diferencaCentavos : null,
+              valorDevolucaoCentavos: diferencaCentavos < 0 ? Math.abs(diferencaCentavos) : null,
+              devolucaoConfirmadaEm: diferencaCentavos >= 0 ? null : pd.devolucaoConfirmadaEm,
+            },
+          });
+        } else {
+          await tx.pedidoDiaria.update({
+            where: { id: pd.id },
+            data: {
+              noites: resultadoDiaria.noites,
+              ultimaNoiteQualifica: resultadoDiaria.ultimaNoiteQualifica,
+              diarias: resultadoDiaria.diarias,
+              valorTotalCentavos: novoValorDiariaTotal,
+              valorComplementarCentavos: null,
+              valorDevolucaoCentavos: null,
+            },
+          });
+        }
+      }
+
+      // 4. Registra histórico da Alteração de Viagem
+      const alteracao = await tx.alteracaoViagem.create({
+        data: {
+          viagemId,
+          solicitadoPorId: sessao.userId,
+          motivo: motivoAlteracao,
+          status: "APROVADA",
+          saidaSedeAnterior: viagem.saidaSede,
+          chegadaDestinoAnterior: viagem.chegadaDestino,
+          saidaDestinoAnterior: viagem.saidaDestino,
+          chegadaSedeAnterior: viagem.chegadaSede,
+          saidaSedeNova: saidaSede,
+          chegadaDestinoNova: chegadaDestino,
+          saidaDestinoNova: saidaDestino,
+          chegadaSedeNova: chegadaSede,
+          diariasAnteriores: pd?.diarias ?? null,
+          diariasNovas: resultadoDiaria?.diarias ?? null,
+          valorAnteriorCentavos,
+          valorNovoCentavos: novoValorDiariaTotal,
+          diferencaCentavos,
+          analisadoPorId: sessao.perfil === "ADMIN" ? sessao.userId : null,
+          analisadoEm: sessao.perfil === "ADMIN" ? new Date() : null,
+        },
+      });
+
+      // 5. Salva comprovante de alteração se anexado
+      if (comprovanteLido) {
+        await tx.anexo.create({
+          data: {
+            alteracaoViagemId: alteracao.id,
+            tipo: "COMPROVANTE_ALTERACAO_PROGRAMACAO",
+            nomeArquivo: comprovanteLido.nomeArquivo,
+            conteudo: comprovanteLido.conteudo as never,
+          },
+        });
+      }
+
+      // 6. Registra no histórico de auditoria de aprovações
+      if (pd) {
+        const decisao = jaDeferido
+          ? diferencaCentavos > 0
+            ? "ALTERAÇÃO COM DIÁRIA COMPLEMENTAR"
+            : diferencaCentavos < 0
+            ? "ALTERAÇÃO COM DEVOLUÇÃO AO ERÁRIO"
+            : "ALTERAÇÃO DE DATAS (MESMO VALOR)"
+          : "PROGRAMAÇÃO RETIFICADA ANTES DO DEFERIMENTO";
+
+        await tx.aprovacao.create({
+          data: {
+            pedidoDiariaId: pd.id,
+            aprovadorId: sessao.userId,
+            decisao,
+            motivo: motivoAlteracao,
+          },
+        });
+      }
+    });
+
+    revalidatePath(`/pedidos/${viagemId}`);
+    revalidatePath("/pedidos");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : "Erro ao alterar programação da viagem." };
+  }
+}
+

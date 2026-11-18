@@ -428,3 +428,51 @@ export async function regularizarPendenciaAction(
     revalidatePath("/pedidos");
   });
 }
+
+export async function confirmarDevolucaoDiariaAction(
+  pedidoId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const { pedido, sessao } = await verificarAcessoPedido("DIARIA", pedidoId);
+
+    const arquivo = formData.get("arquivo");
+    if (!(arquivo instanceof File) || arquivo.size === 0) {
+      throw new Error("Selecione o comprovante de recolhimento/devolução (PDF).");
+    }
+    if (arquivo.type !== "application/pdf") {
+      throw new Error("O comprovante de devolução deve ser um arquivo PDF.");
+    }
+
+    const arquivoLido = await lerArquivoEnviado(arquivo);
+
+    await prisma.$transaction([
+      prisma.anexo.create({
+        data: {
+          pedidoDiariaId: pedidoId,
+          tipo: "COMPROVANTE_DEVOLUCAO_DIARIA",
+          nomeArquivo: arquivoLido.nomeArquivo,
+          conteudo: arquivoLido.conteudo as never,
+        },
+      }),
+      prisma.pedidoDiaria.update({
+        where: { id: pedidoId },
+        data: {
+          devolucaoConfirmadaEm: new Date(),
+          devolucaoConfirmadaPor: sessao.userId,
+        },
+      }),
+      prisma.aprovacao.create({
+        data: {
+          pedidoDiariaId: pedidoId,
+          aprovadorId: sessao.userId,
+          decisao: "COMPROVANTE DE DEVOLUÇÃO AO ERÁRIO ENVIADO",
+          motivo: `Comprovante de devolução (${arquivoLido.nomeArquivo}) anexado com sucesso.`,
+        },
+      }),
+    ]);
+
+    revalidatePath(`/pedidos/${pedido.viagemId}`);
+    revalidatePath("/pedidos");
+  });
+}

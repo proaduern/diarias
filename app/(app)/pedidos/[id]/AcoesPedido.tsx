@@ -11,6 +11,7 @@ import {
   indeferirPedidoAction,
   enviarRelatorioViagemAction,
   regularizarPendenciaAction,
+  confirmarDevolucaoDiariaAction,
   type TipoPedido,
 } from "@/lib/actions/pedidos";
 import { desempacotar, type ResultadoAction } from "@/lib/actions/resultado";
@@ -22,6 +23,8 @@ interface PedidoAcoes {
   pendenciaRegularizadaEm: Date | null;
   /** Só se aplica a hospedagem/passagem aérea — undefined para diária. */
   valorTotalCentavos?: number | null;
+  valorDevolucaoCentavos?: number | null;
+  devolucaoConfirmadaEm?: Date | null;
 }
 
 export default function AcoesPedido({
@@ -237,6 +240,39 @@ export default function AcoesPedido({
           className="rounded-xl border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-60"
         >
           Enviar relatório de viagem
+        </button>
+      </form>,
+    );
+  }
+
+  if (
+    tipo === "DIARIA" &&
+    pedido.status === "DEFERIDO" &&
+    pedido.valorDevolucaoCentavos &&
+    pedido.valorDevolucaoCentavos > 0 &&
+    !pedido.devolucaoConfirmadaEm
+  ) {
+    acoes.push(
+      <form
+        key="enviar-comprovante-devolucao"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const formData = new FormData(form);
+          executar(() => confirmarDevolucaoDiariaAction(pedido.id, formData));
+        }}
+        className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-amber-50 border border-amber-300 p-3 rounded-xl w-full"
+      >
+        <span className="text-xs font-semibold text-amber-900 shrink-0">
+          Comprovante de Devolução ao Erário (PDF):
+        </span>
+        <input type="file" name="arquivo" accept="application/pdf" required className="text-xs text-slate-700" />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded-xl bg-amber-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-900 disabled:opacity-60 shrink-0 transition cursor-pointer"
+        >
+          Enviar comprovante de devolução
         </button>
       </form>,
     );

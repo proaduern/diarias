@@ -62,9 +62,30 @@ export default async function PedidosPage() {
               return (
                 <tr key={v.id} className="hover:bg-slate-50">
                   <td className="px-4 py-2">
-                    <Link href={`/pedidos/${v.id}`} className="font-medium text-slate-900 underline">
-                      {v.beneficiario.nome}
-                    </Link>
+                    <div className="flex flex-col items-start gap-1">
+                      <Link href={`/pedidos/${v.id}`} className="font-medium text-slate-900 underline">
+                        {v.beneficiario.nome}
+                      </Link>
+                      <div className="flex flex-wrap gap-1">
+                        {v.retificadaEm && (
+                          <span className="inline-block rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.2 text-[10px] font-semibold text-blue-800">
+                            Retificada
+                          </span>
+                        )}
+                        {v.pedidosDiaria.some((p) => p.valorComplementarCentavos != null && p.valorComplementarCentavos > 0) && (
+                          <span className="inline-block rounded-md bg-emerald-50 border border-emerald-300 px-1.5 py-0.2 text-[10px] font-bold text-emerald-900">
+                            Complemento
+                          </span>
+                        )}
+                        {v.pedidosDiaria.some(
+                          (p) => p.valorDevolucaoCentavos != null && p.valorDevolucaoCentavos > 0 && !p.devolucaoConfirmadaEm,
+                        ) && (
+                          <span className="inline-block rounded-md bg-amber-50 border border-amber-300 px-1.5 py-0.2 text-[10px] font-bold text-amber-900">
+                            Devolução Pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-2 text-slate-600">{v.unidadeSolicitante.nome}</td>
                   <td className="px-4 py-2">

@@ -50,6 +50,8 @@ model Usuario {
 
   viagensCriadas Viagem[]    @relation("ViagemCriadaPor")
   aprovacoes     Aprovacao[] @relation("AprovacoesFeitas")
+  alteracoesSolicitadas AlteracaoViagem[] @relation("AlteracaoSolicitadaPor")
+  alteracoesAnalisadas  AlteracaoViagem[] @relation("AlteracaoAnalisadaPor")
 }
 
 // ---------------------------------------------------------------------------
@@ -184,10 +186,13 @@ model Viagem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  retificadaEm DateTime?
+
   atividades           Atividade[]
   pedidosDiaria        PedidoDiaria[]
   pedidosHospedagem    PedidoHospedagem[]
   pedidosPassagemAerea PedidoPassagemAerea[]
+  alteracoes           AlteracaoViagem[]
 
   @@index([beneficiarioId])
   @@index([unidadeSolicitanteId])
@@ -261,11 +266,19 @@ enum StatusPedido {
   INDEFERIDO
 }
 
+enum StatusAlteracaoViagem {
+  PENDENTE_APROVACAO
+  APROVADA
+  REJEITADA
+}
+
 enum TipoAnexo {
   AUTORIZACAO_LIMITE
   RELATORIO_VIAGEM
   PLANO_AULA
   COMPROVANTE_ATIVIDADE
+  COMPROVANTE_ALTERACAO_PROGRAMACAO
+  COMPROVANTE_DEVOLUCAO_DIARIA
 }
 
 model PedidoDiaria {
@@ -302,6 +315,12 @@ model PedidoDiaria {
   relatorioEnviadoEm       DateTime?
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
+
+  // Ajustes decorrentes de alteração de programação
+  valorComplementarCentavos Int?
+  valorDevolucaoCentavos    Int?
+  devolucaoConfirmadaEm     DateTime?
+  devolucaoConfirmadaPor    String?
 
   // Emissão de portaria (.docx) para download pelo admin, feita após o
   // deferimento e levada à assinatura no SEI. numeroProcessoSei e
@@ -363,6 +382,12 @@ model PedidoHospedagem {
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
 
+  // Ajustes decorrentes de alteração de programação
+  valorComplementarCentavos Int?
+  valorDevolucaoCentavos    Int?
+  devolucaoConfirmadaEm     DateTime?
+  devolucaoConfirmadaPor    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -404,6 +429,12 @@ model PedidoPassagemAerea {
   pendenciaRegularizadaEm  DateTime?
   pendenciaRegularizadaPor String?
 
+  // Ajustes decorrentes de alteração de programação
+  valorComplementarCentavos Int?
+  valorDevolucaoCentavos    Int?
+  devolucaoConfirmadaEm     DateTime?
+  devolucaoConfirmadaPor    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -428,12 +459,52 @@ model Anexo {
   pedidoPassagemAerea   PedidoPassagemAerea? @relation(fields: [pedidoPassagemAereaId], references: [id])
   atividadeId           String?
   atividade             Atividade?           @relation(fields: [atividadeId], references: [id])
+  alteracaoViagemId     String?
+  alteracaoViagem       AlteracaoViagem?     @relation(fields: [alteracaoViagemId], references: [id])
 
   tipo        TipoAnexo
   nomeArquivo String
   caminho     String? // legado (armazenamento em disco); não usado mais, ver `conteudo`
   conteudo    Bytes?
   enviadoEm   DateTime  @default(now())
+}
+
+model AlteracaoViagem {
+  id                    String                @id @default(cuid())
+  viagemId              String
+  viagem                Viagem                @relation(fields: [viagemId], references: [id], onDelete: Cascade)
+  solicitadoPorId       String
+  solicitadoPor         Usuario               @relation("AlteracaoSolicitadaPor", fields: [solicitadoPorId], references: [id])
+  motivo                String
+  status                StatusAlteracaoViagem @default(APROVADA)
+
+  saidaSedeAnterior      DateTime
+  chegadaDestinoAnterior DateTime
+  saidaDestinoAnterior   DateTime
+  chegadaSedeAnterior    DateTime
+
+  saidaSedeNova      DateTime
+  chegadaDestinoNova DateTime
+  saidaDestinoNova   DateTime
+  chegadaSedeNova    DateTime
+
+  diariasAnteriores     Decimal?              @db.Decimal(6, 2)
+  diariasNovas          Decimal?              @db.Decimal(6, 2)
+  valorAnteriorCentavos Int?
+  valorNovoCentavos     Int?
+  diferencaCentavos     Int?
+
+  analisadoPorId String?
+  analisadoPor   Usuario?              @relation("AlteracaoAnalisadaPor", fields: [analisadoPorId], references: [id])
+  analisadoEm    DateTime?
+  parecerAdmin   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anexos Anexo[]
+
+  @@index([viagemId])
 }
 
 model Aprovacao {

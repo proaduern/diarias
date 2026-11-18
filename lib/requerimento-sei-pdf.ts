@@ -6,6 +6,7 @@ export interface DadosRequerimentoViagemSei {
   numeroProcessoSei: string | null;
   idDocumentoSei: string | null;
   criadoEm: Date;
+  retificadaEm?: Date | null;
   unidadeSolicitante: {
     nome: string;
     email: string;
@@ -88,7 +89,7 @@ export function gerarTextoCopiavelParaSei(d: DadosRequerimentoViagemSei): string
     "PRÓ-REITORIA DE ADMINISTRAÇÃO - PROAD",
     "SETOR DE DIÁRIAS, PASSAGENS E HOSPEDAGENS",
     "==========================================================================",
-    `REQUERIMENTO E PROPOSTA DE CONCESSÃO (${beneficios.toUpperCase()})`,
+    `REQUERIMENTO E PROPOSTA DE CONCESSÃO (${beneficios.toUpperCase()})${d.retificadaEm ? " - PROGRAMAÇÃO RETIFICADA" : ""}`,
     "==========================================================================",
     `Processo SEI nº: ${d.numeroProcessoSei || "[Informar no SEI]"}`,
     `Unidade Solicitante: ${d.unidadeSolicitante.nome} (${d.unidadeSolicitante.email})`,
@@ -203,9 +204,14 @@ export function gerarRequerimentoViagemSeiPdf(d: DadosRequerimentoViagemSei): Bu
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 51, 102);
-  doc.text(`REQUERIMENTO E PROPOSTA DE CONCESSÃO (${beneficios.toUpperCase()})`, 105, 31, {
-    align: "center",
-  });
+  doc.text(
+    `REQUERIMENTO E PROPOSTA DE CONCESSÃO (${beneficios.toUpperCase()})${d.retificadaEm ? " - RETIFICADO" : ""}`,
+    105,
+    31,
+    {
+      align: "center",
+    },
+  );
 
   // Quadro de Identificação do Processo SEI e Código da Viagem
   doc.setFillColor(248, 250, 252);

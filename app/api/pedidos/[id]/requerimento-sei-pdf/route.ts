@@ -45,6 +45,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     numeroProcessoSei: viagem.numeroProcessoSei ?? pDiaria?.numeroProcessoSei ?? null,
     idDocumentoSei: viagem.idDocumentoSei ?? pDiaria?.idPropostaConcessao ?? null,
     criadoEm: viagem.createdAt,
+    retificadaEm: viagem.retificadaEm,
     unidadeSolicitante: {
       nome: viagem.unidadeSolicitante.nome,
       email: viagem.unidadeSolicitante.email,

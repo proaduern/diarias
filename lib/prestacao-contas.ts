@@ -32,6 +32,8 @@ export function somarDiasUteis(data: Date, quantidade: number): Date {
 export interface PedidoParaPrestacaoContas {
   chegadaSede: Date;
   relatorioEnviadoEm: Date | null;
+  valorDevolucaoCentavos?: number | null;
+  devolucaoConfirmadaEm?: Date | null;
 }
 
 export type SituacaoPrestacaoContas =
@@ -47,7 +49,13 @@ export function avaliarPrestacaoContas(
   prazoRelatorioDiasUteis: number,
   prazoDevolucaoDiasCorridos: number,
 ): SituacaoPrestacaoContas {
-  if (pedido.relatorioEnviadoEm) {
+  const temDevolucaoPendente = Boolean(
+    pedido.valorDevolucaoCentavos &&
+      pedido.valorDevolucaoCentavos > 0 &&
+      !pedido.devolucaoConfirmadaEm,
+  );
+
+  if (pedido.relatorioEnviadoEm && !temDevolucaoPendente) {
     return { situacao: "CONCLUIDO" };
   }
 
@@ -55,24 +63,31 @@ export function avaliarPrestacaoContas(
     return { situacao: "EM_VIAGEM" };
   }
 
+  const prazoDevolucaoMs =
+    pedido.chegadaSede.getTime() +
+    prazoDevolucaoDiasCorridos * 24 * 60 * 60 * 1000;
+
+  if (temDevolucaoPendente && agora.getTime() >= prazoDevolucaoMs) {
+    return { situacao: "DEVOLUCAO_PENDENTE", prazoLimite: new Date(prazoDevolucaoMs) };
+  }
+
   const prazoRelatorio = somarDiasUteis(
     pedido.chegadaSede,
     prazoRelatorioDiasUteis,
   );
 
-  const prazoDevolucaoMs =
-    pedido.chegadaSede.getTime() +
-    prazoDevolucaoDiasCorridos * 24 * 60 * 60 * 1000;
-
-  if (agora.getTime() >= prazoDevolucaoMs) {
-    return { situacao: "DEVOLUCAO_PENDENTE", prazoLimite: new Date(prazoDevolucaoMs) };
+  if (!pedido.relatorioEnviadoEm) {
+    if (agora.getTime() >= prazoDevolucaoMs) {
+      return { situacao: "DEVOLUCAO_PENDENTE", prazoLimite: new Date(prazoDevolucaoMs) };
+    }
+    if (agora.getTime() > prazoRelatorio.getTime()) {
+      return { situacao: "RELATORIO_ATRASADO", prazoLimite: prazoRelatorio };
+    }
+    return { situacao: "AGUARDANDO_RELATORIO_NO_PRAZO", prazoLimite: prazoRelatorio };
   }
 
-  if (agora.getTime() > prazoRelatorio.getTime()) {
-    return { situacao: "RELATORIO_ATRASADO", prazoLimite: prazoRelatorio };
-  }
-
-  return { situacao: "AGUARDANDO_RELATORIO_NO_PRAZO", prazoLimite: prazoRelatorio };
+  // Relatório já enviado, mas ainda dentro do prazo de devolução
+  return { situacao: "AGUARDANDO_RELATORIO_NO_PRAZO", prazoLimite: new Date(prazoDevolucaoMs) };
 }
 
 /** Bloqueia novo pedido se houver qualquer pendência (relatório atrasado ou devolução). */
