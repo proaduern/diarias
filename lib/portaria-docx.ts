@@ -14,9 +14,10 @@
  * vem de `DadosPortariaDiaria`, preenchido pelo chamador a partir do banco.
  * Escopo: apenas portaria de Diária (ver decisão registrada nas tarefas).
  */
-import { AlignmentType, Document, Packer, Paragraph, TextRun } from "docx";
+import { AlignmentType, Document, ImageRun, Packer, Paragraph, TextRun } from "docx";
 import { formatarCpf, formatarDataPorExtenso, formatarMoeda } from "./formato";
 import { diariasPorExtenso, valorPorExtenso } from "./numero-extenso";
+import { obterBytesBrasaoUern } from "./templates/cabecalho-uern";
 
 export interface DadosPortariaDiaria {
   /** Só o número sequencial (ex.: "3785") — digitado manualmente pelo admin, sem contador automático. */
@@ -111,6 +112,7 @@ export async function gerarPortariaDiariaDocx(d: DadosPortariaDiaria): Promise<B
   const numeroCompleto = `${d.portariaNumero}/${anoPortaria}-GP/FUERN`;
   const dataPortariaExtensoCaps = formatarDataPorExtenso(d.portariaData).toUpperCase();
   const dataDelegacaoExtenso = formatarDataPorExtenso(d.dataPortariaDelegacao);
+  const brasaoBytes = obterBytesBrasaoUern();
 
   const doc = new Document({
     styles: {
@@ -123,6 +125,21 @@ export async function gerarPortariaDiariaDocx(d: DadosPortariaDiaria): Promise<B
     sections: [
       {
         children: [
+          ...(brasaoBytes
+            ? [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 100 },
+                  children: [
+                    new ImageRun({
+                      data: brasaoBytes,
+                      transformation: { width: 52, height: 66 },
+                      type: "jpg",
+                    }),
+                  ],
+                }),
+              ]
+            : []),
           paragrafo("FUNDAÇÃO UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE - FUERN", {
             negrito: true,
             alinhamento: AlignmentType.CENTER,

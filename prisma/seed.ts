@@ -20,31 +20,35 @@ async function main() {
     },
   });
 
-  console.log("Seed: categorias de beneficiário (Portaria 293/2020-GP/FUERN, Anexo I, nota 1)...");
+  console.log("Seed: categorias de beneficiário (Portaria nº 1454/2023-GP/FUERN c/c Decreto nº 32.688/2023)...");
   const categorias = [
     {
       nome: "Classe I — Reitor e Vice-Reitor",
-      descricao: "Reitor e Vice-Reitor",
+      descricao: "Reitor, Vice-Reitor, Chefe de Gabinete, Pró-Reitores e Assessores CC4 (Portaria nº 1454/2023-GP/FUERN, Nota 1, I)",
       limiteAnualDias: 60,
+      elegivelHospedagem: false,
       ordem: 1,
     },
     {
       nome: "Classe II — Chefe de Gabinete, Pró-Reitores e Assessores CC4",
-      descricao: "Chefe de Gabinete, Pró-Reitores e Assessores CC4",
+      descricao: "Chefe de Gabinete, Pró-Reitores e Assessores CC4 (Equiparados à Classe I da Portaria nº 1454/2023-GP/FUERN)",
       limiteAnualDias: 60,
+      elegivelHospedagem: false,
       ordem: 2,
     },
     {
       nome: "Classe III — Diretores de Unidade e de Campi Avançados",
-      descricao: "Diretores de Unidades, Diretores de Campi Avançados",
+      descricao: "Diretores de Unidades, Diretores de Campi Avançados, Funções Gratificadas FG-1, FG-2 e Agentes Colaboradores (Classe II da Portaria nº 1454/2023-GP/FUERN)",
       limiteAnualDias: 60,
+      elegivelHospedagem: true,
       ordem: 3,
     },
     {
       nome: "Classe IV — Professores, TNS, TNM e Servidores de Apoio",
       descricao:
-        "Professores, TNS's, TNM's, Servidores de Apoio do Quadro Geral e demais",
+        "Professores, TNS's, TNM's, Servidores de Apoio do Quadro Geral e demais Funções Gratificadas (Classe III da Portaria nº 1454/2023-GP/FUERN)",
       limiteAnualDias: 60,
+      elegivelHospedagem: false,
       ordem: 4,
     },
   ];
@@ -89,10 +93,13 @@ async function main() {
     destinoPorNome.set(d.nome, criado.id);
   }
 
-  console.log("Seed: matriz de valores (Portaria 293/2020-GP/FUERN, Anexo I)...");
-  // Tabela 1 - Território Nacional (em centavos de R$) por Classe (I, II, III, IV)
+  console.log("Seed: matriz de valores (Portaria nº 1454/2023-GP/FUERN c/c Decreto nº 32.688/2023, Anexo I)...");
+  // Tabela 1 - Território Nacional (em centavos de R$) conforme Portaria nº 1454/2023-GP/FUERN:
+  // Classe I (Reitor/Vice/Chefe Gab/Pró-Reitores/CC4): R$ 200 (Interior RN) | R$ 400 (Brasil/SP/RJ/DF)
+  // Classe II (Diretores/FG-1/FG-2/Colaboradores): R$ 160 (Interior RN) | R$ 350 (Brasil/SP/RJ/DF)
+  // Classe III (Professores/TNS/TNM/Apoio/demais FG): R$ 140 (Interior RN) | R$ 250 (Brasil/SP/RJ/DF)
   const tabela1: Record<string, [number, number, number, number]> = {
-    "Interior do RN (exceto Natal e Mossoró)": [15000, 15000, 12000, 8000],
+    "Interior do RN (exceto Natal e Mossoró)": [20000, 20000, 16000, 14000],
     "Natal, Mossoró e Outras Cidades do Brasil": [40000, 40000, 35000, 25000],
     "São Paulo/SP, Rio de Janeiro/RJ, Brasília/DF": [40000, 40000, 35000, 25000],
   };

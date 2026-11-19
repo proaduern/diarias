@@ -135,6 +135,18 @@ export default function NovoPedidoForm({
         precisam ser selecionados de novo).
       </p>
 
+      <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-900 space-y-1">
+        <p className="font-bold">
+          Orientação Normativa SDHP/PROAD (Prazos em Dias Úteis e Demandas Estudantis):
+        </p>
+        <p>
+          • <strong>Prazos mínimos de antecedência (dias úteis):</strong> Diárias Nacionais (5 dias úteis), Diárias Internacionais (15 dias úteis), Passagens Aéreas Nacionais e Hospedagens (10 dias úteis), Passagens Aéreas Internacionais (20 dias úteis).
+        </p>
+        <p>
+          • <strong>Auxílio para Estudantes/Discentes (Resolução nº 04/2024-CD e IN nº 002/2024-PRAE/PROAD):</strong> Solicitações de viagem para participação de estudantes regularmente matriculados devem tramitar junto à <strong>Pró-Reitoria de Assuntos Estudantis (PRAE)</strong>.
+        </p>
+      </div>
+
       {rascunhoRestaurado && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
           <span>Um rascunho salvo anteriormente foi restaurado.</span>
@@ -300,15 +312,133 @@ export default function NovoPedidoForm({
 
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-700">
-          Justificativa para lançamento fora do prazo (só obrigatório se o
-          prazo mínimo de {prazoMinimoDias} dia(s) de antecedência não for
-          respeitado)
+          Justificativa para lançamento fora do prazo (obrigatório quando a antecedência mínima em dias úteis do SDHP não for atendida)
         </label>
         <textarea
           name="justificativaPrazoCurto"
           rows={2}
+          placeholder="Justifique a excepcionalidade caso o pedido seja lançado fora do prazo regulamentar em dias úteis..."
           className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-700">
+          Justificativa para viagem iniciando em sexta-feira ou incluindo sábado, domingo ou feriado (Art. 6º, VIII e Art. 17, § 1º do Decreto Estadual nº 29.444/2020)
+        </label>
+        <textarea
+          name="justificativaFimDeSemanaFeriado"
+          rows={2}
+          placeholder="Obrigatório sempre que a saída ocorrer na sexta-feira ou o período da viagem abranger sábado, domingo ou feriado..."
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        />
+      </div>
+
+      {/* SEÇÃO: FONTE PAGADORA, TRANSPORTE E CHEFIA SOLICITANTE (MODELOS OFICIAIS SDHP/PROAD) */}
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Fonte Pagadora, Transporte e Chefia Solicitante (Modelos Oficiais SDHP/UERN)
+        </h2>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Fonte pagadora da despesa
+            </label>
+            <select
+              name="fontePagadora"
+              defaultValue="FONTE_0500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="FONTE_0500">0.500 — Recursos não vinculados de impostos</option>
+              <option value="ORCAMENTO_PARTICIPATIVO">Orçamento Participativo (OP)</option>
+              <option value="FONTE_0501">0.501 — Outros Recursos não Vinculados (Recursos Próprios)</option>
+              <option value="CONVENIO_FEDERAL">Convênio Federal (Decreto nº 5.992/2006 — POP 04)</option>
+              <option value="DISPENSADO_GESTAO">Dispensado — Unidade da Gestão</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Detalhamento da fonte / nº do convênio (se aplicável)
+            </label>
+            <input
+              name="detalhamentoFonte"
+              placeholder="Ex.: Convênio Transferegov nº 912345/2025 ou Unidade OP"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Tipo de transporte utilizado
+            </label>
+            <select
+              name="tipoTransporte"
+              defaultValue="TERRESTRE_OFICIAL"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="TERRESTRE_OFICIAL">Transporte terrestre oficial (UERN)</option>
+              <option value="AEREO">Transporte aéreo</option>
+              <option value="OUTRO">Outro meio de transporte</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Especificar transporte (quando &quot;Outro&quot;)
+            </label>
+            <input
+              name="tipoTransporteOutro"
+              placeholder="Ex.: Ônibus intermunicipal / Veículo próprio"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Nome da Chefia Imediata / Responsável pela Solicitação
+            </label>
+            <input
+              name="chefiaNome"
+              placeholder="Nome completo do gestor solicitante"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              Cargo / Função da Chefia Solicitante
+            </label>
+            <input
+              name="chefiaCargo"
+              placeholder="Ex.: Diretor(a) de Unidade / Pró-Reitor(a) / Chefe de Departamento"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5 pt-1">
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input type="checkbox" name="viagemVinculadaFg" defaultChecked className="mt-0.5" />
+            <span>
+              Viagem vinculada às atribuições de Cargo Comissionado ou Função Gratificada (FG) do servidor (se houver Portaria FG cadastrada).
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input type="checkbox" name="acompanhaReitorVice" className="mt-0.5" />
+            <span>
+              <strong>Nota 3 da Portaria nº 1454/2023-GP/FUERN:</strong> Servidor em acompanhamento direto ao Reitor ou Vice-Reitor na mesma missão oficial (equipara o valor unitário da diária à Classe I — Reitor/Vice-Reitor).
+            </span>
+          </label>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">
+            Observações adicionais para os Formulários Oficiais (opcional)
+          </label>
+          <textarea
+            name="observacoesSolicitacao"
+            rows={2}
+            placeholder="Informações complementares que devam constar no quadro de Observações do formulário PDF/DOCX..."
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
       </div>
 
       <AtividadesFormSection enquadramentos={enquadramentos} valoresIniciais={rascunho ?? undefined} />
@@ -354,28 +484,86 @@ export default function NovoPedidoForm({
               )}
             </label>
             {querHospedagem && (
-              <div className="mt-1 ml-6">
-                <label className="mb-1 block text-xs font-medium text-slate-700">
-                  Contrato de hospedagem
-                </label>
-                <select
-                  name="contratoHospedagemId"
-                  required
-                  className="w-full max-w-sm rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Selecione...</option>
-                  {contratosHospedagem.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.empresaNome} — contrato {c.numeroContrato}
-                    </option>
-                  ))}
-                </select>
-                {contratosHospedagem.length === 0 && (
-                  <p className="mt-1 text-xs text-red-600">
-                    Não há contrato de hospedagem vigente cadastrado. Peça ao administrador
-                    para cadastrar em Contratos.
-                  </p>
-                )}
+              <div className="mt-2 ml-6 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700">
+                    Contrato de hospedagem
+                  </label>
+                  <select
+                    name="contratoHospedagemId"
+                    required
+                    className="w-full max-w-sm rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {contratosHospedagem.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.empresaNome} — contrato {c.numeroContrato}
+                      </option>
+                    ))}
+                  </select>
+                  {contratosHospedagem.length === 0 && (
+                    <p className="mt-1 text-xs text-red-600">
+                      Não há contrato de hospedagem vigente cadastrado. Peça ao administrador
+                      para cadastrar em Contratos.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">
+                      Tipo de apartamento (Modelo 3 — Hospedagem)
+                    </label>
+                    <select
+                      name="tipoApartamento"
+                      defaultValue="SIMPLES"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="SIMPLES">Apartamento Simples</option>
+                      <option value="DUPLO">Apartamento Duplo</option>
+                      <option value="TRIPLO">Apartamento Triplo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">
+                      Endereço residencial do hóspede (opcional — usa o cadastro se vazio)
+                    </label>
+                    <input
+                      name="enderecoBeneficiario"
+                      placeholder="Rua, nº, Bairro, Cidade/UF, CEP"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                      <input type="checkbox" name="almocoIncluido" />
+                      Almoço incluído
+                    </label>
+                    <input
+                      name="almocoQtdDias"
+                      type="number"
+                      min={0}
+                      placeholder="Qtd. dias"
+                      className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                      <input type="checkbox" name="jantarIncluido" />
+                      Jantar incluído
+                    </label>
+                    <input
+                      name="jantarQtdDias"
+                      type="number"
+                      min={0}
+                      placeholder="Qtd. dias"
+                      className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -394,28 +582,63 @@ export default function NovoPedidoForm({
             </span>
           </label>
           {querPassagemAerea && (
-            <div className="mt-1 ml-6">
-              <label className="mb-1 block text-xs font-medium text-slate-700">
-                Contrato de passagem aérea
-              </label>
-              <select
-                name="contratoPassagemAereaId"
-                required
-                className="w-full max-w-sm rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="">Selecione...</option>
-                {contratosPassagemAerea.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.empresaNome} — contrato {c.numeroContrato}
-                  </option>
-                ))}
-              </select>
-              {contratosPassagemAerea.length === 0 && (
-                <p className="mt-1 text-xs text-red-600">
-                  Não há contrato de passagem aérea vigente cadastrado. Peça ao administrador
-                  para cadastrar em Contratos.
-                </p>
-              )}
+            <div className="mt-2 ml-6 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Contrato de passagem aérea
+                </label>
+                <select
+                  name="contratoPassagemAereaId"
+                  required
+                  className="w-full max-w-sm rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione...</option>
+                  {contratosPassagemAerea.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.empresaNome} — contrato {c.numeroContrato}
+                    </option>
+                  ))}
+                </select>
+                {contratosPassagemAerea.length === 0 && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Não há contrato de passagem aérea vigente cadastrado. Peça ao administrador
+                    para cadastrar em Contratos.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700">
+                    Período preferencial do voo de IDA (Modelo 2 — Passagens)
+                  </label>
+                  <select
+                    name="periodoSaida"
+                    defaultValue="MANHA"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="MADRUGADA">Madrugada (00:00 às 05:59)</option>
+                    <option value="MANHA">Manhã (06:00 às 11:59)</option>
+                    <option value="TARDE">Tarde (12:00 às 17:59)</option>
+                    <option value="NOITE">Noite (18:00 às 23:59)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700">
+                    Período preferencial do voo de RETORNO (Modelo 2 — Passagens)
+                  </label>
+                  <select
+                    name="periodoRetorno"
+                    defaultValue="NOITE"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="MADRUGADA">Madrugada (00:00 às 05:59)</option>
+                    <option value="MANHA">Manhã (06:00 às 11:59)</option>
+                    <option value="TARDE">Tarde (12:00 às 17:59)</option>
+                    <option value="NOITE">Noite (18:00 às 23:59)</option>
+                  </select>
+                </div>
+              </div>
             </div>
           )}
         </div>

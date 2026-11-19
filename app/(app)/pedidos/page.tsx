@@ -106,23 +106,44 @@ export default async function PedidosPage() {
                   <td className="px-4 py-2 text-slate-600">
                     <div className="space-y-1">
                       {v.pedidosDiaria.map((p) => (
-                        <div key={p.id}>
-                          Diária —{" "}
-                          {p.valorTotalCentavos != null
-                            ? formatarMoeda(p.valorTotalCentavos, "BRL")
-                            : formatarDiarias(p.diarias ? Number(p.diarias) : null)}
+                        <div key={p.id} className="flex flex-wrap items-center gap-1.5">
+                          <span>
+                            Diária —{" "}
+                            {p.valorTotalCentavos != null
+                              ? formatarMoeda(p.valorTotalCentavos, "BRL")
+                              : formatarDiarias(p.diarias ? Number(p.diarias) : null)}
+                          </span>
+                          {p.sequencialFormatado && (
+                            <span className="inline-block rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-700">
+                              {p.sequencialFormatado}
+                            </span>
+                          )}
                         </div>
                       ))}
                       {v.pedidosHospedagem.map((p) => (
-                        <div key={p.id}>
-                          Hospedagem
-                          {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                        <div key={p.id} className="flex flex-wrap items-center gap-1.5">
+                          <span>
+                            Hospedagem
+                            {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                          </span>
+                          {p.sequencialFormatado && (
+                            <span className="inline-block rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-700">
+                              {p.sequencialFormatado}
+                            </span>
+                          )}
                         </div>
                       ))}
                       {v.pedidosPassagemAerea.map((p) => (
-                        <div key={p.id}>
-                          Passagem aérea
-                          {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                        <div key={p.id} className="flex flex-wrap items-center gap-1.5">
+                          <span>
+                            Passagem aérea
+                            {p.valorTotalCentavos != null ? ` — ${formatarMoeda(p.valorTotalCentavos, "BRL")}` : ""}
+                          </span>
+                          {p.sequencialFormatado && (
+                            <span className="inline-block rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-700">
+                              {p.sequencialFormatado}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>

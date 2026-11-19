@@ -476,3 +476,206 @@ export async function confirmarDevolucaoDiariaAction(
     revalidatePath("/pedidos");
   });
 }
+
+
+export async function salvarRelatorioViagemEstruturadoAction(
+  viagemId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    const sessao = await exigirSessao();
+
+    const viagem = await prisma.viagem.findUnique({
+      where: { id: viagemId },
+      include: {
+        pedidosDiaria: true,
+        pedidosPassagemAerea: true,
+        pedidosHospedagem: true,
+      },
+    });
+
+    if (!viagem) throw new Error("Solicitação de viagem não encontrada.");
+    if (sessao.perfil !== "ADMIN" && viagem.unidadeSolicitanteId !== sessao.unidadeId) {
+      throw new Error("Acesso negado.");
+    }
+
+    const relatorioBaseLegal =
+      String(formData.get("relatorioBaseLegal") ?? "DECRETO_29444_2020").trim() ||
+      "DECRETO_29444_2020";
+    const relatorioDescricaoAtividades =
+      String(formData.get("relatorioDescricaoAtividades") ?? "").trim() || null;
+    const relatorioResultado =
+      String(formData.get("relatorioResultado") ?? "TOTALMENTE_ATINGIDO").trim() ||
+      "TOTALMENTE_ATINGIDO";
+    const relatorioJustificativaResultado =
+      String(formData.get("relatorioJustificativaResultado") ?? "").trim() || null;
+    const relatorioJustificativaRetornoAntecipado =
+      String(formData.get("relatorioJustificativaRetornoAntecipado") ?? "").trim() || null;
+    const relatorioAnexosDescricao =
+      String(formData.get("relatorioAnexosDescricao") ?? "").trim() || null;
+    const concluirPrestacaoContas = formData.get("concluirPrestacaoContas") === "on";
+
+    const agora = new Date();
+
+    for (const pd of viagem.pedidosDiaria) {
+      await prisma.pedidoDiaria.update({
+        where: { id: pd.id },
+        data: {
+          relatorioBaseLegal,
+          relatorioDescricaoAtividades,
+          relatorioResultado,
+          relatorioJustificativaResultado,
+          relatorioJustificativaRetornoAntecipado,
+          relatorioAnexosDescricao,
+          ...(concluirPrestacaoContas && pd.status === "DEFERIDO" && !pd.relatorioEnviadoEm
+            ? { relatorioEnviadoEm: agora }
+            : {}),
+        },
+      });
+    }
+
+    for (const pp of viagem.pedidosPassagemAerea) {
+      await prisma.pedidoPassagemAerea.update({
+        where: { id: pp.id },
+        data: {
+          relatorioDescricaoAtividades,
+          relatorioResultado,
+          ...(concluirPrestacaoContas && pp.status === "DEFERIDO" && !pp.relatorioEnviadoEm
+            ? { relatorioEnviadoEm: agora }
+            : {}),
+        },
+      });
+    }
+
+    for (const ph of viagem.pedidosHospedagem) {
+      await prisma.pedidoHospedagem.update({
+        where: { id: ph.id },
+        data: {
+          relatorioDescricaoAtividades,
+          relatorioResultado,
+          ...(concluirPrestacaoContas && ph.status === "DEFERIDO" && !ph.relatorioEnviadoEm
+            ? { relatorioEnviadoEm: agora }
+            : {}),
+        },
+      });
+    }
+
+    if (concluirPrestacaoContas) {
+      const { carregarDadosCompletosViagemSdhp } = await import(
+        "@/lib/templates/carregar-dados-viagem"
+      );
+      const { gerarRelatorioViagemPdf } = await import("@/lib/templates/documentos-sdhp");
+      const dadosCompletos = await carregarDadosCompletosViagemSdhp(viagemId);
+      if (dadosCompletos) {
+        const pdfBuf = gerarRelatorioViagemPdf(dadosCompletos);
+        const nomeRel = `Relatorio_Viagem_Oficial_SDHP_${viagemId.slice(-6)}.pdf`;
+        for (const pd of viagem.pedidosDiaria) {
+          if (pd.status === "DEFERIDO") {
+            await prisma.anexo.create({
+              data: {
+                pedidoDiariaId: pd.id,
+                tipo: "RELATORIO_VIAGEM",
+                nomeArquivo: nomeRel,
+                conteudo: new Uint8Array(pdfBuf) as never,
+              },
+            });
+          }
+        }
+        for (const pp of viagem.pedidosPassagemAerea) {
+          if (pp.status === "DEFERIDO") {
+            await prisma.anexo.create({
+              data: {
+                pedidoPassagemAereaId: pp.id,
+                tipo: "RELATORIO_VIAGEM",
+                nomeArquivo: nomeRel,
+                conteudo: new Uint8Array(pdfBuf) as never,
+              },
+            });
+          }
+        }
+        for (const ph of viagem.pedidosHospedagem) {
+          if (ph.status === "DEFERIDO") {
+            await prisma.anexo.create({
+              data: {
+                pedidoHospedagemId: ph.id,
+                tipo: "RELATORIO_VIAGEM",
+                nomeArquivo: nomeRel,
+                conteudo: new Uint8Array(pdfBuf) as never,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    revalidatePath(`/pedidos/${viagemId}`);
+    revalidatePath("/pedidos");
+  });
+}
+
+export async function atualizarChecklistPopSdhpAction(
+  viagemId: string,
+  formData: FormData,
+): Promise<ResultadoAction> {
+  return comTratamentoDeErro(async () => {
+    await exigirAdmin();
+
+    const viagem = await prisma.viagem.findUnique({
+      where: { id: viagemId },
+      include: {
+        pedidosDiaria: true,
+        pedidosPassagemAerea: true,
+        pedidosHospedagem: true,
+      },
+    });
+    if (!viagem) throw new Error("Solicitação de viagem não encontrada.");
+
+    const jouernPublicado = formData.get("jouernPublicado") === "on";
+    const jouernEdicao = String(formData.get("jouernEdicao") ?? "").trim() || null;
+    const esocialCadastrado = formData.get("esocialCadastrado") === "on";
+    const sigefPrestacaoContas = formData.get("sigefPrestacaoContas") === "on";
+    const obtvTransferegovNumero =
+      String(formData.get("obtvTransferegovNumero") ?? "").trim() || null;
+    const ordemServicoPassagem =
+      String(formData.get("ordemServicoPassagem") ?? "").trim() || null;
+    const bilheteLocalizador = String(formData.get("bilheteLocalizador") ?? "").trim() || null;
+    const ordemServicoHospedagem =
+      String(formData.get("ordemServicoHospedagem") ?? "").trim() || null;
+
+    for (const pd of viagem.pedidosDiaria) {
+      await prisma.pedidoDiaria.update({
+        where: { id: pd.id },
+        data: {
+          jouernPublicadoEm: jouernPublicado ? pd.jouernPublicadoEm ?? new Date() : null,
+          jouernEdicao,
+          esocialCadastradoEm: esocialCadastrado ? pd.esocialCadastradoEm ?? new Date() : null,
+          sigefPrestacaoContasEm: sigefPrestacaoContas
+            ? pd.sigefPrestacaoContasEm ?? new Date()
+            : null,
+          obtvTransferegovNumero,
+        },
+      });
+    }
+
+    for (const pp of viagem.pedidosPassagemAerea) {
+      await prisma.pedidoPassagemAerea.update({
+        where: { id: pp.id },
+        data: {
+          ordemServicoNumero: ordemServicoPassagem,
+          bilheteLocalizador,
+        },
+      });
+    }
+
+    for (const ph of viagem.pedidosHospedagem) {
+      await prisma.pedidoHospedagem.update({
+        where: { id: ph.id },
+        data: {
+          ordemServicoNumero: ordemServicoHospedagem,
+        },
+      });
+    }
+
+    revalidatePath(`/pedidos/${viagemId}`);
+  });
+}

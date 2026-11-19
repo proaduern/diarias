@@ -17,6 +17,21 @@ interface BeneficiarioParaEdicao {
   unidadeVinculoId: string | null;
   matricula: string | null;
   cargo: string | null;
+  dataNascimento?: string | null;
+  rg?: string | null;
+  passaporte?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+  portariaFg?: string | null;
+  enderecoCompleto?: string | null;
+  nisPisPasep?: string | null;
+  servidorOutroOrgao?: boolean;
+  estadoCivil?: string | null;
+  sexo?: string | null;
+  grauInstrucao?: string | null;
+  racaCor?: string | null;
+  municipioUfEndereco?: string | null;
+  ocupacaoCurso?: string | null;
 }
 
 export default function EditarBeneficiarioForm({
@@ -167,7 +182,94 @@ export default function EditarBeneficiarioForm({
                 className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">Portaria FG / CC</label>
+              <input
+                name="portariaFg"
+                defaultValue={beneficiario.portariaFg ?? ""}
+                className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+              />
+            </div>
           </>
+        )}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">Data de nascimento</label>
+          <input
+            name="dataNascimento"
+            defaultValue={beneficiario.dataNascimento ?? ""}
+            placeholder="dd/mm/aaaa"
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">R.G.</label>
+          <input
+            name="rg"
+            defaultValue={beneficiario.rg ?? ""}
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">Passaporte</label>
+          <input
+            name="passaporte"
+            defaultValue={beneficiario.passaporte ?? ""}
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">Telefone / WhatsApp</label>
+          <input
+            name="telefone"
+            defaultValue={beneficiario.telefone ?? ""}
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-700">E-mail</label>
+          <input
+            name="email"
+            defaultValue={beneficiario.email ?? ""}
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-medium text-slate-700">Endereço Completo</label>
+          <input
+            name="enderecoCompleto"
+            defaultValue={beneficiario.enderecoCompleto ?? ""}
+            className="w-full rounded-xl border border-slate-300 px-2 py-1 text-xs"
+          />
+        </div>
+        {semVinculo && (
+          <div className="sm:col-span-2 grid grid-cols-1 gap-2 sm:grid-cols-3 rounded-xl border border-blue-200 bg-blue-50/40 p-2.5">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-slate-700">NIS / PIS / PASEP (eSocial)</label>
+              <input
+                name="nisPisPasep"
+                defaultValue={beneficiario.nisPisPasep ?? ""}
+                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+              />
+            </div>
+            <div className="flex items-center pt-3">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  name="servidorOutroOrgao"
+                  defaultChecked={beneficiario.servidorOutroOrgao ?? false}
+                />
+                Servidor de outro órgão?
+              </label>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium text-slate-700">Ocupação / Curso (eSocial)</label>
+              <input
+                name="ocupacaoCurso"
+                defaultValue={beneficiario.ocupacaoCurso ?? ""}
+                className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+              />
+            </div>
+          </div>
         )}
       </div>
 

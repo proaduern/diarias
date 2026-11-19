@@ -121,6 +121,32 @@ model Beneficiario {
   // matrícula e cargo/função — basta CPF — pois não possui nenhum dos dois.
   matricula        String?
   cargo            String?
+  dataNascimento   String?
+  rg               String?
+  passaporte       String?
+  telefone         String?
+  email            String?
+  portariaFg       String?
+  enderecoCompleto String?
+
+  // Campos eSocial para Agente Colaborador / Colaborador Eventual (POP 03 e POP 04)
+  nisPisPasep          String?
+  servidorOutroOrgao   Boolean @default(false)
+  estadoCivil          String?
+  sexo                 String?
+  grauInstrucao        String?
+  racaCor              String?
+  paisNascimento       String? @default("Brasil")
+  paisNacionalidade    String? @default("Brasil")
+  tipoLogradouro       String?
+  logradouro           String?
+  numeroEndereco       String?
+  complementoEndereco  String?
+  bairroEndereco       String?
+  cepEndereco          String?
+  municipioUfEndereco  String?
+  ocupacaoCurso        String?
+
   ativo            Boolean               @default(true)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
@@ -179,6 +205,18 @@ model Viagem {
   numeroProcessoSei      String?
   idDocumentoSei         String?
   processoSeiVinculadoEm DateTime?
+
+  // Campos normativos dos formulários oficiais UERN (POPs 03, 04, 05, 06 e Portaria 1454/2023)
+  fontePagadora                    String?  @default("FONTE_0500")
+  detalhamentoFonte                String?
+  tipoTransporte                   String?  @default("TERRESTRE_OFICIAL")
+  tipoTransporteOutro              String?
+  chefiaNome                       String?
+  chefiaCargo                      String?
+  justificativaFimDeSemanaFeriado  String?
+  observacoesSolicitacao           String?
+  acompanhaReitorVice              Boolean  @default(false)
+  viagemVinculadaFg                Boolean  @default(false)
 
   criadoPorId String
   criadoPor   Usuario @relation("ViagemCriadaPor", fields: [criadoPorId], references: [id])
@@ -336,6 +374,26 @@ model PedidoDiaria {
   portariaEmitidaEm   DateTime?
   portariaEmitidaPor  String?
 
+  // Sequencial automático próprio de Diárias (ex.: Solicitação de Diárias nº 001/2026 - SDHP/PROAD/UERN)
+  sequencialNumero    Int?
+  sequencialAno       Int?
+  sequencialFormatado String?
+
+  // Relatório de Viagem e Prestação de Contas estruturado (4-RELATORIO-DE-VIAGEM-2025)
+  relatorioBaseLegal                    String? @default("DECRETO_29444_2020")
+  relatorioDescricaoAtividades          String?
+  relatorioResultado                    String? @default("TOTALMENTE_ATINGIDO")
+  relatorioJustificativaResultado       String?
+  relatorioJustificativaRetornoAntecipado String?
+  relatorioAnexosDescricao              String?
+
+  // Checklist operacional SDHP (POP 03 e POP 04)
+  jouernPublicadoEm      DateTime?
+  jouernEdicao           String?
+  esocialCadastradoEm    DateTime?
+  sigefPrestacaoContasEm DateTime?
+  obtvTransferegovNumero String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -388,6 +446,23 @@ model PedidoHospedagem {
   devolucaoConfirmadaEm     DateTime?
   devolucaoConfirmadaPor    String?
 
+  // Sequencial automático próprio de Hospedagem (ex.: Solicitação de Hospedagem nº 001/2026 - SDHP/PROAD/UERN)
+  sequencialNumero    Int?
+  sequencialAno       Int?
+  sequencialFormatado String?
+
+  // Campos específicos do Formulário 3 de Hospedagem (POP 06)
+  almocoIncluido       Boolean @default(false)
+  almocoQtdDias        Int?
+  jantarIncluido       Boolean @default(false)
+  jantarQtdDias        Int?
+  tipoApartamento      String? @default("SIMPLES")
+  enderecoBeneficiario String?
+  ordemServicoNumero   String?
+
+  relatorioDescricaoAtividades String?
+  relatorioResultado           String? @default("TOTALMENTE_ATINGIDO")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -434,6 +509,20 @@ model PedidoPassagemAerea {
   valorDevolucaoCentavos    Int?
   devolucaoConfirmadaEm     DateTime?
   devolucaoConfirmadaPor    String?
+
+  // Sequencial automático próprio de Passagens Aéreas (ex.: Solicitação de Passagens Aéreas nº 001/2026 - SDHP/PROAD/UERN)
+  sequencialNumero    Int?
+  sequencialAno       Int?
+  sequencialFormatado String?
+
+  // Campos específicos do Formulário 2 de Passagens Aéreas (POP 05)
+  periodoSaida       String? @default("MANHA")
+  periodoRetorno     String? @default("NOITE")
+  ordemServicoNumero String?
+  bilheteLocalizador String?
+
+  relatorioDescricaoAtividades String?
+  relatorioResultado           String? @default("TOTALMENTE_ATINGIDO")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -616,4 +705,15 @@ model ConfiguracaoSistema {
   assinante1Cargo         String?
   assinante2Nome          String?
   assinante2Cargo         String?
+}
+
+model SequencialDocumentoSdhp {
+  id           String   @id @default(cuid())
+  tipo         String   // DIARIA | PASSAGEM_AEREA | HOSPEDAGEM | TERMO_RETIFICACAO | FICHA_ESOCIAL
+  ano          Int
+  ultimoNumero Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tipo, ano])
+  @@map("sequenciais_documentos_sdhp")
 }

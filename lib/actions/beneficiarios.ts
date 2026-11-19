@@ -25,11 +25,40 @@ export async function criarBeneficiarioAction(
   const contaCorrente = String(formData.get("contaCorrente") ?? "").trim();
   const categoriaId = String(formData.get("categoriaId") ?? "");
   const unidadeVinculoId = String(formData.get("unidadeVinculoId") ?? "") || null;
-  // Matrícula e cargo/função só se aplicam a quem tem vínculo funcional com
-  // uma unidade. Um Agente Colaborador externo (sem vínculo) dispensa os
-  // dois — basta CPF — então são sempre nulos nesse caso.
-  const matricula = unidadeVinculoId ? String(formData.get("matricula") ?? "").trim() || null : null;
-  const cargo = unidadeVinculoId ? String(formData.get("cargo") ?? "").trim() || null : null;
+  const servidorOutroOrgao = formData.get("servidorOutroOrgao") === "on";
+  // Matrícula e cargo/função são obrigatórios para quem tem vínculo funcional
+  // com unidade da UERN, e opcionais para colaborador externo (exceto quando
+  // servidor de outro órgão informado para fins de eSocial).
+  const matricula =
+    unidadeVinculoId || servidorOutroOrgao
+      ? String(formData.get("matricula") ?? "").trim() || null
+      : null;
+  const cargo = String(formData.get("cargo") ?? "").trim() || null;
+
+  const dataNascimento = String(formData.get("dataNascimento") ?? "").trim() || null;
+  const rg = String(formData.get("rg") ?? "").trim() || null;
+  const passaporte = String(formData.get("passaporte") ?? "").trim() || null;
+  const telefone = String(formData.get("telefone") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const portariaFg = String(formData.get("portariaFg") ?? "").trim() || null;
+  const enderecoCompleto = String(formData.get("enderecoCompleto") ?? "").trim() || null;
+
+  // Campos eSocial (Colaborador Externo / Eventual)
+  const nisPisPasep = String(formData.get("nisPisPasep") ?? "").trim() || null;
+  const estadoCivil = String(formData.get("estadoCivil") ?? "").trim() || null;
+  const sexo = String(formData.get("sexo") ?? "").trim() || null;
+  const grauInstrucao = String(formData.get("grauInstrucao") ?? "").trim() || null;
+  const racaCor = String(formData.get("racaCor") ?? "").trim() || null;
+  const paisNascimento = String(formData.get("paisNascimento") ?? "").trim() || "Brasil";
+  const paisNacionalidade = String(formData.get("paisNacionalidade") ?? "").trim() || "Brasil";
+  const tipoLogradouro = String(formData.get("tipoLogradouro") ?? "").trim() || null;
+  const logradouro = String(formData.get("logradouro") ?? "").trim() || null;
+  const numeroEndereco = String(formData.get("numeroEndereco") ?? "").trim() || null;
+  const complementoEndereco = String(formData.get("complementoEndereco") ?? "").trim() || null;
+  const bairroEndereco = String(formData.get("bairroEndereco") ?? "").trim() || null;
+  const cepEndereco = String(formData.get("cepEndereco") ?? "").trim() || null;
+  const municipioUfEndereco = String(formData.get("municipioUfEndereco") ?? "").trim() || null;
+  const ocupacaoCurso = String(formData.get("ocupacaoCurso") ?? "").trim() || null;
 
   if (!nome || !cpf || !banco || !agencia || !contaCorrente || !categoriaId) {
     return { erro: "Preencha todos os campos obrigatórios." };
@@ -70,6 +99,29 @@ export async function criarBeneficiarioAction(
       unidadeVinculoId,
       matricula,
       cargo,
+      dataNascimento,
+      rg,
+      passaporte,
+      telefone,
+      email,
+      portariaFg,
+      enderecoCompleto,
+      nisPisPasep,
+      servidorOutroOrgao,
+      estadoCivil,
+      sexo,
+      grauInstrucao,
+      racaCor,
+      paisNascimento,
+      paisNacionalidade,
+      tipoLogradouro,
+      logradouro,
+      numeroEndereco,
+      complementoEndereco,
+      bairroEndereco,
+      cepEndereco,
+      municipioUfEndereco,
+      ocupacaoCurso,
     },
   });
 
@@ -118,12 +170,36 @@ export async function atualizarBeneficiarioAction(
         ? String(formData.get("unidadeVinculoId") ?? "") || null
         : beneficiario.unidadeVinculoId;
 
-    const matricula = unidadeVinculoIdEfetivo
-      ? String(formData.get("matricula") ?? "").trim() || null
-      : null;
-    const cargo = unidadeVinculoIdEfetivo
-      ? String(formData.get("cargo") ?? "").trim() || null
-      : null;
+    const servidorOutroOrgao = formData.get("servidorOutroOrgao") === "on";
+    const matricula =
+      unidadeVinculoIdEfetivo || servidorOutroOrgao
+        ? String(formData.get("matricula") ?? "").trim() || null
+        : null;
+    const cargo = String(formData.get("cargo") ?? "").trim() || null;
+
+    const dataNascimento = String(formData.get("dataNascimento") ?? "").trim() || null;
+    const rg = String(formData.get("rg") ?? "").trim() || null;
+    const passaporte = String(formData.get("passaporte") ?? "").trim() || null;
+    const telefone = String(formData.get("telefone") ?? "").trim() || null;
+    const email = String(formData.get("email") ?? "").trim() || null;
+    const portariaFg = String(formData.get("portariaFg") ?? "").trim() || null;
+    const enderecoCompleto = String(formData.get("enderecoCompleto") ?? "").trim() || null;
+
+    const nisPisPasep = String(formData.get("nisPisPasep") ?? "").trim() || null;
+    const estadoCivil = String(formData.get("estadoCivil") ?? "").trim() || null;
+    const sexo = String(formData.get("sexo") ?? "").trim() || null;
+    const grauInstrucao = String(formData.get("grauInstrucao") ?? "").trim() || null;
+    const racaCor = String(formData.get("racaCor") ?? "").trim() || null;
+    const paisNascimento = String(formData.get("paisNascimento") ?? "").trim() || "Brasil";
+    const paisNacionalidade = String(formData.get("paisNacionalidade") ?? "").trim() || "Brasil";
+    const tipoLogradouro = String(formData.get("tipoLogradouro") ?? "").trim() || null;
+    const logradouro = String(formData.get("logradouro") ?? "").trim() || null;
+    const numeroEndereco = String(formData.get("numeroEndereco") ?? "").trim() || null;
+    const complementoEndereco = String(formData.get("complementoEndereco") ?? "").trim() || null;
+    const bairroEndereco = String(formData.get("bairroEndereco") ?? "").trim() || null;
+    const cepEndereco = String(formData.get("cepEndereco") ?? "").trim() || null;
+    const municipioUfEndereco = String(formData.get("municipioUfEndereco") ?? "").trim() || null;
+    const ocupacaoCurso = String(formData.get("ocupacaoCurso") ?? "").trim() || null;
 
     if (!nome || !cpf || !banco || !agencia || !contaCorrente || !categoriaId) {
       throw new Error("Preencha todos os campos obrigatórios.");
@@ -161,6 +237,29 @@ export async function atualizarBeneficiarioAction(
       categoria: { connect: { id: categoriaId } },
       matricula,
       cargo,
+      dataNascimento,
+      rg,
+      passaporte,
+      telefone,
+      email,
+      portariaFg,
+      enderecoCompleto,
+      nisPisPasep,
+      servidorOutroOrgao,
+      estadoCivil,
+      sexo,
+      grauInstrucao,
+      racaCor,
+      paisNascimento,
+      paisNacionalidade,
+      tipoLogradouro,
+      logradouro,
+      numeroEndereco,
+      complementoEndereco,
+      bairroEndereco,
+      cepEndereco,
+      municipioUfEndereco,
+      ocupacaoCurso,
     };
 
     if (sessao.perfil === "ADMIN") {

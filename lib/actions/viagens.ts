@@ -5,12 +5,17 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { exigirSessao } from "@/lib/auth";
 import { calcularDiarias } from "@/lib/diaria-calculo";
-import { avaliarPrazo } from "@/lib/prazo";
+import {
+  avaliarPrazo,
+  avaliarPrazoDiasUteisSdhp,
+  avaliarViagemFimDeSemanaFeriado,
+} from "@/lib/prazo";
 import { avaliarLimites } from "@/lib/limites";
 import { avaliarHorarioAtividade } from "@/lib/atividades";
 import { calcularTempoViagemAeroporto } from "@/lib/tempo-viagem";
 import { avaliarPrestacaoContas, temPendenciaBloqueante } from "@/lib/prestacao-contas";
 import { lerArquivoEnviado } from "@/lib/storage";
+import { reservarProximoSequencialSdhp } from "@/lib/sequencial-sdhp";
 import type { StatusPedido } from "@prisma/client";
 
 export interface CriarViagemState {
@@ -124,6 +129,35 @@ export async function criarViagemComPedidosAction(
   const justificativaPrazoCurto =
     String(formData.get("justificativaPrazoCurto") ?? "").trim() || null;
   const cienciaPrazoAtividade = formData.get("cienciaPrazoAtividade") === "on";
+
+  // Campos normativos dos formulários oficiais UERN (POPs 03, 04, 05, 06 e Portaria 1454/2023)
+  const fontePagadora = String(formData.get("fontePagadora") ?? "FONTE_0500").trim() || "FONTE_0500";
+  const detalhamentoFonte = String(formData.get("detalhamentoFonte") ?? "").trim() || null;
+  const tipoTransporte =
+    String(formData.get("tipoTransporte") ?? "").trim() ||
+    (formData.get("vaiBuscarAeroporto") === "on" || querPassagemAerea ? "AEREO" : "TERRESTRE_OFICIAL");
+  const tipoTransporteOutro = String(formData.get("tipoTransporteOutro") ?? "").trim() || null;
+  const chefiaNome = String(formData.get("chefiaNome") ?? "").trim() || null;
+  const chefiaCargo = String(formData.get("chefiaCargo") ?? "").trim() || null;
+  const justificativaFimDeSemanaFeriado =
+    String(formData.get("justificativaFimDeSemanaFeriado") ?? "").trim() || null;
+  const observacoesSolicitacao =
+    String(formData.get("observacoesSolicitacao") ?? "").trim() || null;
+  const acompanhaReitorVice = formData.get("acompanhaReitorVice") === "on";
+  const viagemVinculadaFg = formData.get("viagemVinculadaFg") === "on";
+
+  // Campos específicos de Passagem Aérea (Formulário 2 - 2025)
+  const periodoSaida = String(formData.get("periodoSaida") ?? "MANHA").trim() || "MANHA";
+  const periodoRetorno = String(formData.get("periodoRetorno") ?? "NOITE").trim() || "NOITE";
+
+  // Campos específicos de Hospedagem (Formulário 3 - 2023 / POP 06)
+  const almocoIncluido = formData.get("almocoIncluido") === "on";
+  const almocoQtdDias = almocoIncluido ? Number(formData.get("almocoQtdDias") ?? 1) || 1 : null;
+  const jantarIncluido = formData.get("jantarIncluido") === "on";
+  const jantarQtdDias = jantarIncluido ? Number(formData.get("jantarQtdDias") ?? 1) || 1 : null;
+  const tipoApartamento = String(formData.get("tipoApartamento") ?? "SIMPLES").trim() || "SIMPLES";
+  const enderecoBeneficiario =
+    String(formData.get("enderecoBeneficiario") ?? "").trim() || null;
 
   const sedeCidade = String(formData.get("sedeCidade") ?? "").trim();
   const sedeEstado = String(formData.get("sedeEstado") ?? "").trim().toUpperCase();
@@ -330,15 +364,39 @@ export async function criarViagemComPedidosAction(
     }
   }
 
-  // --- Prazo ---
-  const situacaoPrazo = avaliarPrazo(new Date(), saidaSede, config.prazoMinimoDiasAntecedencia);
+  // --- Prazo em Dias Úteis por Modalidade (Visão Geral SDHP - pág. 1) ---
+  const tipoDestinoObj = await prisma.tipoDestino.findUnique({ where: { id: tipoDestinoId } });
+  const ehInternacional = Boolean(
+    tipoDestinoObj?.nome && tipoDestinoObj.nome.toLowerCase().includes("exterior"),
+  );
+
+  const situacaoPrazo = avaliarPrazoDiasUteisSdhp(new Date(), saidaSede, {
+    querDiaria,
+    querPassagemAerea,
+    querHospedagem,
+    ehInternacional,
+    prazoBaseConfig: config.prazoMinimoDiasAntecedencia,
+  });
 
   if (situacaoPrazo.situacao === "BLOQUEADO_RETROATIVO") {
     return { erro: "Não é possível lançar um pedido para uma viagem que já começou ou já ocorreu." };
   }
   if (situacaoPrazo.situacao === "REQUER_JUSTIFICATIVA" && !justificativaPrazoCurto) {
     return {
-      erro: `O prazo mínimo de antecedência configurado é de ${config.prazoMinimoDiasAntecedencia} dia(s). Como este pedido está sendo lançado com menos antecedência, é obrigatório informar uma justificativa.`,
+      erro: `O prazo mínimo de antecedência para ${situacaoPrazo.regraAplicada ?? "esta modalidade"} é de ${situacaoPrazo.prazoExigido ?? config.prazoMinimoDiasAntecedencia} dia(s) úteis. Como este pedido está sendo lançado com ${situacaoPrazo.diasDeAntecedencia} dia(s) úteis de antecedência, é obrigatório informar uma justificativa.`,
+    };
+  }
+
+  // --- Validação de Viagem iniciando em Sexta-Feira ou abrangendo Sábado/Domingo (Art. 6, VIII e Art. 17, § 1º Decreto 29.444/2020) ---
+  const avaliacaoFimDeSemana = avaliarViagemFimDeSemanaFeriado(saidaSede, chegadaSede);
+  if (
+    avaliacaoFimDeSemana.exigeJustificativa &&
+    !justificativaFimDeSemanaFeriado &&
+    !justificativaPrazoCurto &&
+    !observacoesSolicitacao
+  ) {
+    return {
+      erro: `Atenção: ${avaliacaoFimDeSemana.motivo}. Conforme as Orientações Gerais do SDHP/PROAD, é obrigatório preencher o campo de Justificativa de Sexta-Feira / Final de Semana / Feriado.`,
     };
   }
 
@@ -362,8 +420,22 @@ export async function criarViagemComPedidosAction(
       return { erro: `Esta viagem não faz jus a diária: ${motivo}.` };
     }
 
+    // Nota 3 da Portaria nº 1454/2023-GP/FUERN:
+    // "Os servidores ocupantes de cargo efetivo ou em comissão, quando formalmente designados
+    // para acompanhar o(a) Reitor(a) e o(a) Vice-Reitor(a), farão jus à percepção de diárias de
+    // igual valor às atribuídas àquela autoridade (Classe I)."
+    let categoriaIdParaCalculo = beneficiario.categoriaId;
+    if (acompanhaReitorVice) {
+      const catClasse1 = await prisma.categoriaBeneficiario.findFirst({
+        where: { ordem: 1 },
+      });
+      if (catClasse1) {
+        categoriaIdParaCalculo = catClasse1.id;
+      }
+    }
+
     const valorDiaria = await prisma.valorDiaria.findUnique({
-      where: { categoriaId_tipoDestinoId: { categoriaId: beneficiario.categoriaId, tipoDestinoId } },
+      where: { categoriaId_tipoDestinoId: { categoriaId: categoriaIdParaCalculo, tipoDestinoId } },
     });
     if (!valorDiaria) {
       return {
@@ -414,6 +486,13 @@ export async function criarViagemComPedidosAction(
   const temProcessoSeiVinculado = Boolean(numeroProcessoSeiInput && confirmouEnvioSei);
   const statusComum = statusInicialComum(situacaoPrazo, situacaoAtividade);
 
+  const anoSequencial = new Date().getFullYear();
+  const [seqDiaria, seqHospedagem, seqPassagem] = await Promise.all([
+    querDiaria ? reservarProximoSequencialSdhp("DIARIA", anoSequencial) : Promise.resolve(null),
+    querHospedagem ? reservarProximoSequencialSdhp("HOSPEDAGEM", anoSequencial) : Promise.resolve(null),
+    querPassagemAerea ? reservarProximoSequencialSdhp("PASSAGEM_AEREA", anoSequencial) : Promise.resolve(null),
+  ]);
+
   const viagem = await prisma.$transaction(async (tx) => {
     const viagemCriada = await tx.viagem.create({
       data: {
@@ -437,6 +516,16 @@ export async function criarViagemComPedidosAction(
         numeroProcessoSei: temProcessoSeiVinculado ? numeroProcessoSeiInput : null,
         idDocumentoSei: temProcessoSeiVinculado ? idDocumentoSeiInput : null,
         processoSeiVinculadoEm: temProcessoSeiVinculado ? new Date() : null,
+        fontePagadora,
+        detalhamentoFonte,
+        tipoTransporte,
+        tipoTransporteOutro,
+        chefiaNome,
+        chefiaCargo,
+        justificativaFimDeSemanaFeriado,
+        observacoesSolicitacao,
+        acompanhaReitorVice,
+        viagemVinculadaFg,
         criadoPorId: sessao.userId,
       },
     });
@@ -500,6 +589,9 @@ export async function criarViagemComPedidosAction(
           cienciaPrazoAtividade,
           numeroProcessoSei: temProcessoSeiVinculado ? numeroProcessoSeiInput : null,
           idPropostaConcessao: temProcessoSeiVinculado ? idDocumentoSeiInput : null,
+          sequencialNumero: seqDiaria?.numero ?? null,
+          sequencialAno: seqDiaria?.ano ?? null,
+          sequencialFormatado: seqDiaria?.sequencialFormatado ?? null,
         },
       });
     }
@@ -515,6 +607,15 @@ export async function criarViagemComPedidosAction(
           status: statusHospedagem,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,
+          sequencialNumero: seqHospedagem?.numero ?? null,
+          sequencialAno: seqHospedagem?.ano ?? null,
+          sequencialFormatado: seqHospedagem?.sequencialFormatado ?? null,
+          almocoIncluido,
+          almocoQtdDias,
+          jantarIncluido,
+          jantarQtdDias,
+          tipoApartamento,
+          enderecoBeneficiario,
         },
       });
     }
@@ -530,6 +631,11 @@ export async function criarViagemComPedidosAction(
           status: statusPassagem,
           justificativaPrazoCurto,
           cienciaPrazoAtividade,
+          sequencialNumero: seqPassagem?.numero ?? null,
+          sequencialAno: seqPassagem?.ano ?? null,
+          sequencialFormatado: seqPassagem?.sequencialFormatado ?? null,
+          periodoSaida,
+          periodoRetorno,
         },
       });
     }

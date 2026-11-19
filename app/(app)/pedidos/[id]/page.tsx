@@ -6,7 +6,11 @@ import { avaliarPrestacaoContas, type SituacaoPrestacaoContas } from "@/lib/pres
 import AcoesPedido from "./AcoesPedido";
 import EmitirPortariaForm from "./EmitirPortariaForm";
 import PainelKitSeiViagem from "./PainelKitSeiViagem";
+import PainelRelatorioViagem from "./PainelRelatorioViagem";
+import PainelChecklistPopSdhp from "./PainelChecklistPopSdhp";
 import ModalAlterarProgramacao from "./ModalAlterarProgramacao";
+import { garantirSequenciaisViagem } from "@/lib/sequencial-sdhp";
+import { formatarFontePagadoraTexto } from "@/lib/templates/documentos-sdhp";
 import { CalendarClock, Coins, RotateCcw } from "lucide-react";
 import {
   gerarTextoCopiavelParaSei,
@@ -46,6 +50,8 @@ export default async function ViagemDetalhePage({
   const { id } = await params;
   const sessao = await obterSessao();
   if (!sessao) return null;
+
+  await garantirSequenciaisViagem(id);
 
   const [viagem, config, enquadramentos] = await Promise.all([
     prisma.viagem.findUnique({
@@ -314,13 +320,92 @@ export default async function ViagemDetalhePage({
         destinoFormatado={`${viagem.municipioDestino}/${viagem.destinoEstado}`}
         beneficiosLabel={obterBeneficiosSolicitadosLabel(dadosKitSei)}
         textoCopiavelSei={gerarTextoCopiavelParaSei(dadosKitSei)}
+        ehColaboradorExterno={!viagem.beneficiario.unidadeVinculoId}
+        temRetificacao={Boolean(viagem.retificadaEm || viagem.alteracoes.length > 0)}
+        sequencialDiaria={pDiaria?.sequencialFormatado ?? null}
+        sequencialPassagem={pPass?.sequencialFormatado ?? null}
+        sequencialHospedagem={pHosp?.sequencialFormatado ?? null}
+      />
+
+      {/* PAINEL DO RELATÓRIO DE VIAGEM E PRESTAÇÃO DE CONTAS (MODELO 2025 VINCULADO AO SEQUENCIAL ORIGINAL) */}
+      <PainelRelatorioViagem
+        viagemId={viagem.id}
+        sequenciaisOriginais={[
+          ...(pDiaria?.sequencialFormatado ? [pDiaria.sequencialFormatado] : []),
+          ...(pPass?.sequencialFormatado ? [pPass.sequencialFormatado] : []),
+          ...(pHosp?.sequencialFormatado ? [pHosp.sequencialFormatado] : []),
+        ]}
+        relatorioBaseLegalInicial={
+          pDiaria?.relatorioBaseLegal ||
+          (viagem.fontePagadora === "CONVENIO_FEDERAL" ? "DECRETO_5992_2006" : "DECRETO_29444_2020")
+        }
+        relatorioDescricaoAtividadesInicial={
+          pDiaria?.relatorioDescricaoAtividades ||
+          pPass?.relatorioDescricaoAtividades ||
+          pHosp?.relatorioDescricaoAtividades ||
+          viagem.atividades
+            .map(
+              (a, idx) =>
+                `${idx + 1}. [${formatarDataHora(a.dataHoraInicio)} a ${formatarDataHora(a.dataHoraFim)}] ${a.enquadramento.nome}: ${a.descricao}${a.detalhamento ? ` (${a.detalhamento})` : ""}`,
+            )
+            .join("\n")
+        }
+        relatorioResultadoInicial={
+          pDiaria?.relatorioResultado ||
+          pPass?.relatorioResultado ||
+          pHosp?.relatorioResultado ||
+          "TOTALMENTE_ATINGIDO"
+        }
+        relatorioJustificativaResultadoInicial={pDiaria?.relatorioJustificativaResultado ?? null}
+        relatorioJustificativaRetornoAntecipadoInicial={
+          pDiaria?.relatorioJustificativaRetornoAntecipado ?? null
+        }
+        relatorioAnexosDescricaoInicial={
+          pDiaria?.relatorioAnexosDescricao ||
+          viagem.atividades.flatMap((a) => a.anexos.map((ax) => ax.nomeArquivo)).join(", ") ||
+          "Certificado/declaração de participação no evento, comprovantes de embarque e relatório fotográfico."
+        }
+        temPedidoDeferido={pedidos.some(({ pedido }) => pedido.status === "DEFERIDO")}
+        jaConcluidoRelatorio={pedidos.every(
+          ({ pedido }) => pedido.status !== "DEFERIDO" || Boolean(pedido.relatorioEnviadoEm),
+        )}
+      />
+
+      {/* CHECKLIST OPERACIONAL SDHP/PROAD (POPs 03, 04, 05 e 06) */}
+      <PainelChecklistPopSdhp
+        viagemId={viagem.id}
+        ehAdmin={ehAdmin}
+        ehConvenio={viagem.fontePagadora === "CONVENIO_FEDERAL"}
+        temDiaria={Boolean(pDiaria)}
+        temPassagem={Boolean(pPass)}
+        temHospedagem={Boolean(pHosp)}
+        jouernPublicado={Boolean(pDiaria?.jouernPublicadoEm)}
+        jouernEdicao={pDiaria?.jouernEdicao ?? null}
+        esocialCadastrado={Boolean(pDiaria?.esocialCadastradoEm)}
+        sigefPrestacaoContas={Boolean(pDiaria?.sigefPrestacaoContasEm)}
+        obtvTransferegovNumero={pDiaria?.obtvTransferegovNumero ?? null}
+        ordemServicoPassagem={pPass?.ordemServicoNumero ?? null}
+        bilheteLocalizador={pPass?.bilheteLocalizador ?? null}
+        ordemServicoHospedagem={pHosp?.ordemServicoNumero ?? null}
       />
 
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-100 bg-white shadow-sm p-4 sm:grid-cols-2">
         <Campo label="Beneficiário" valor={viagem.beneficiario.nome} />
         <Campo label="CPF" valor={formatarCpf(viagem.beneficiario.cpf)} />
-        <Campo label="Categoria" valor={viagem.beneficiario.categoria.nome} />
+        <Campo label="Categoria (Portaria 1454/2023)" valor={viagem.beneficiario.categoria.nome} />
         <Campo label="Unidade solicitante" valor={viagem.unidadeSolicitante.nome} />
+        <Campo
+          label="Fonte Pagadora da Despesa"
+          valor={formatarFontePagadoraTexto(viagem.fontePagadora || "FONTE_0500", viagem.detalhamentoFonte)}
+        />
+        <Campo
+          label="Chefia Imediata Solicitante"
+          valor={
+            viagem.chefiaNome
+              ? `${viagem.chefiaNome}${viagem.chefiaCargo ? ` (${viagem.chefiaCargo})` : ""}`
+              : `Chefia Imediata — ${viagem.unidadeSolicitante.nome}`
+          }
+        />
         <Campo label="Sede" valor={`${viagem.sedeCidade}/${viagem.sedeEstado}`} />
         <Campo
           label="Município de destino"

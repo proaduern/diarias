@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import { DadosPortariaDiaria } from "./portaria-docx";
 import { formatarCpf, formatarDataPorExtenso, formatarMoeda } from "./formato";
 import { diariasPorExtenso, valorPorExtenso } from "./numero-extenso";
+import { obterBase64BrasaoUern } from "./templates/cabecalho-uern";
 
 function formatarPeriodoDias(inicio: Date, fim: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -35,35 +36,44 @@ export function gerarPortariaDiariaPdf(d: DadosPortariaDiaria): Buffer {
   const dataPortariaExtensoCaps = formatarDataPorExtenso(d.portariaData).toUpperCase();
   const dataDelegacaoExtenso = formatarDataPorExtenso(d.dataPortariaDelegacao);
 
-  // Cabeçalho
+  // Cabeçalho com Brasão Oficial da UERN
+  const brasaoDataUrl = obterBase64BrasaoUern();
+  if (brasaoDataUrl) {
+    try {
+      doc.addImage(brasaoDataUrl, "JPEG", 96, 8, 18, 22);
+    } catch {
+      // fallback silencioso
+    }
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(15, 23, 42);
-  doc.text("FUNDAÇÃO UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE - FUERN", 105, 20, { align: "center" });
+  doc.text("FUNDAÇÃO UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE - FUERN", 105, 34, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
-  doc.text("GABINETE DO PRESIDENTE", 105, 25, { align: "center" });
+  doc.text("GABINETE DO PRESIDENTE", 105, 39, { align: "center" });
 
   doc.setDrawColor(180, 180, 180);
-  doc.line(20, 29, 190, 29);
+  doc.line(20, 43, 190, 43);
 
   // Título da Portaria
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(`PORTARIA Nº ${numeroCompleto} DE ${dataPortariaExtensoCaps}`, 105, 37, { align: "center" });
+  doc.text(`PORTARIA Nº ${numeroCompleto} DE ${dataPortariaExtensoCaps}`, 105, 51, { align: "center" });
 
   // Ementa
   doc.setFont("helvetica", "bolditalic");
   doc.setFontSize(9.5);
-  doc.text("Concede diária.", 190, 47, { align: "right" });
+  doc.text("Concede diária.", 190, 61, { align: "right" });
 
   // Considerandos
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(30, 41, 59);
 
-  let y = 56;
+  let y = 70;
   const c1 = "CONSIDERANDO os termos do Decreto Estadual nº 29.444, de 7 de janeiro de 2020, que dispõe sobre as indenizações previstas no art. 57, I a III, da Lei Complementar nº 122, de 30 de junho de 1994, e dá outras providências;";
   const splitC1 = doc.splitTextToSize(c1, 170);
   doc.text(splitC1, 20, y, { align: "justify" });

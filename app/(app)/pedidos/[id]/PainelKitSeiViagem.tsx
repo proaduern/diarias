@@ -11,6 +11,7 @@ import {
   Send,
   FileText,
   Edit3,
+  FileSpreadsheet,
 } from "lucide-react";
 
 interface PainelKitSeiViagemProps {
@@ -24,6 +25,11 @@ interface PainelKitSeiViagemProps {
   destinoFormatado: string;
   beneficiosLabel: string;
   textoCopiavelSei: string;
+  ehColaboradorExterno?: boolean;
+  temRetificacao?: boolean;
+  sequencialDiaria?: string | null;
+  sequencialPassagem?: string | null;
+  sequencialHospedagem?: string | null;
 }
 
 export default function PainelKitSeiViagem({
@@ -36,6 +42,11 @@ export default function PainelKitSeiViagem({
   destinoFormatado,
   beneficiosLabel,
   textoCopiavelSei,
+  ehColaboradorExterno = false,
+  temRetificacao = false,
+  sequencialDiaria,
+  sequencialPassagem,
+  sequencialHospedagem,
 }: PainelKitSeiViagemProps) {
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
@@ -45,7 +56,7 @@ export default function PainelKitSeiViagem({
   const [copiadoProc, setCopiadoProc] = useState(false);
   const [modoEdicaoSei, setModoEdicaoSei] = useState(false);
 
-  const especificacaoSugerida = `Solicitação de ${beneficiosLabel} - ${beneficiarioNome} (CPF ${beneficiarioCpfFormatado}) - Destino: ${destinoFormatado}`;
+  const especificacaoSugerida = `${beneficiarioNome} - ${destinoFormatado} (${beneficiosLabel})`;
 
   const copiarParaClipboard = async (texto: string, setter: (v: boolean) => void) => {
     try {
@@ -57,81 +68,295 @@ export default function PainelKitSeiViagem({
     }
   };
 
-  const mostrarFormularioVinculo = aguardandoProcessoSei || !numeroProcessoSeiAtual || modoEdicaoSei;
+  const mostrarFormularioVinculo =
+    aguardandoProcessoSei || !numeroProcessoSeiAtual || modoEdicaoSei;
+
+  const seqPrincipalRef =
+    sequencialDiaria || sequencialPassagem || sequencialHospedagem || "Solicitação Original";
 
   return (
     <div className="space-y-4">
-      {/* BLOCO 1: KIT PRONTO PARA O SEI (ZERO RETRABALHO) */}
+      {/* BLOCO 1: CENTRAL DE TEMPLATES OFICIAIS UERN (.PDF E .DOCX COM BRASÃO E SEQUENCIAL AUTOMÁTICO) */}
       <section className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-slate-50 p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-blue-100 pb-3">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-900 uppercase tracking-wide">
               <FileText className="h-3.5 w-3.5 text-blue-700" />
-              Kit Automático de Instrução para o SEI (Sem Retrabalho)
+              Templates Oficiais UERN / SDHP com Brasão e Sequencial Automático
             </span>
             <h2 className="text-sm font-bold text-slate-900 mt-1">
-              Documentos Gerados Automaticamente a partir da sua Solicitação
+              Exportação Dual (.PDF e .DOCX) — Formulários de Solicitação e Relatório de Prestação de Contas
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Você não precisa redigitar nada no SEI: baixe o PDF pronto (ou copie o texto formatado em 1 clique) para inserir no Processo SEI da sua unidade.
+              Todos os formulários seguem os modelos oficiais do Setor de Diárias, Passagens e Hospedagens (SDHP/PROAD/UERN), com cabeçalho institucional, Brasão colorido da UERN e numeração sequencial própria por modalidade.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <a
-              href={`/api/pedidos/${viagemId}/requerimento-sei-pdf`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#003366] px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#002244] transition"
-            >
-              <FileDown className="h-4 w-4" />
-              <span>1. Baixar Requerimento / Proposta (.PDF)</span>
-            </a>
+          <button
+            type="button"
+            onClick={() => copiarParaClipboard(textoCopiavelSei, setCopiadoTexto)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-300 bg-white px-3.5 py-2 text-xs font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer shrink-0"
+          >
+            {copiadoTexto ? (
+              <>
+                <Check className="h-4 w-4 text-emerald-600" />
+                <span className="text-emerald-700">Texto Copiado! Cole no SEI (Ctrl+V)</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4 text-blue-700" />
+                <span>Copiar Texto para Colar no SEI</span>
+              </>
+            )}
+          </button>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => copiarParaClipboard(textoCopiavelSei, setCopiadoTexto)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-300 bg-white px-3.5 py-2 text-xs font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer"
-            >
-              {copiadoTexto ? (
-                <>
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span className="text-emerald-700">Texto Copiado! Cole no SEI (Ctrl+V)</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 text-blue-700" />
-                  <span>Copiar Texto para Colar no SEI</span>
-                </>
-              )}
-            </button>
+        {/* Lista de Documentos Oficiais com Exportação .PDF e .DOCX */}
+        <div className="grid grid-cols-1 gap-3">
+          {sequencialDiaria && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-[#003366] px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                    Modelo 1 • Diárias (POP 03/04)
+                  </span>
+                  <span className="font-mono text-xs font-bold text-[#003366]">
+                    {sequencialDiaria}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Formulário Oficial de Solicitação de Diárias (Tabelas de Dados Pessoais/Bancários, Percurso, Contato, Fonte Pagadora e Observações).
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/diaria?formato=pdf`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#003366] px-3 py-2 text-xs font-bold text-white hover:bg-[#002244] transition"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  <span>Baixar .PDF</span>
+                </a>
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/diaria?formato=docx`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-950 hover:bg-blue-100 transition"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-blue-700" />
+                  <span>Baixar .DOCX</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {sequencialPassagem && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-sky-800 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                    Modelo 2 • Passagens Aéreas (POP 05)
+                  </span>
+                  <span className="font-mono text-xs font-bold text-sky-900">
+                    {sequencialPassagem}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Formulário Oficial de Solicitação de Passagens Aéreas (Dados Civis/RG/Passaporte, Trechos, Períodos Madrugada/Manhã/Tarde/Noite e Fonte Pagadora).
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/passagem?formato=pdf`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#003366] px-3 py-2 text-xs font-bold text-white hover:bg-[#002244] transition"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  <span>Baixar .PDF</span>
+                </a>
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/passagem?formato=docx`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-950 hover:bg-blue-100 transition"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-blue-700" />
+                  <span>Baixar .DOCX</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {sequencialHospedagem && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-indigo-800 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                    Modelo 3 • Hospedagem (POP 06)
+                  </span>
+                  <span className="font-mono text-xs font-bold text-indigo-900">
+                    {sequencialHospedagem}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Formulário Oficial de Solicitação de Hospedagem (Check-in/Check-out, Almoço/Jantar, Tipo de Apartamento Simples/Duplo/Triplo e Endereço).
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/hospedagem?formato=pdf`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#003366] px-3 py-2 text-xs font-bold text-white hover:bg-[#002244] transition"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  <span>Baixar .PDF</span>
+                </a>
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/hospedagem?formato=docx`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-950 hover:bg-blue-100 transition"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-blue-700" />
+                  <span>Baixar .DOCX</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Modelo 4: Relatório de Viagem e Prestação de Contas (Sempre vinculado ao sequencial original!) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 shadow-2xs">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-emerald-800 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                  Modelo 4 • Relatório de Viagem / Prestação de Contas
+                </span>
+                <span className="font-mono text-xs font-bold text-emerald-950">
+                  Vinculado à {seqPrincipalRef}
+                </span>
+              </div>
+              <p className="text-xs text-slate-700 mt-1">
+                Relatório Oficial de Viagem (Art. 33 a 35 do Decreto nº 29.444/2020 e Decreto nº 5.992/2006) com menção automática ao sequencial da solicitação original.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`/api/pedidos/${viagemId}/documentos/relatorio-viagem?formato=pdf`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                <span>Baixar Relatório .PDF</span>
+              </a>
+              <a
+                href={`/api/pedidos/${viagemId}/documentos/relatorio-viagem?formato=docx`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-50 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+                <span>Baixar Relatório .DOCX</span>
+              </a>
+            </div>
           </div>
+
+          {/* Modelo 5: Ficha de Cadastro eSocial (Colaborador Externo / Eventual) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-slate-700 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                  Modelo 5 • Ficha de Cadastro eSocial
+                </span>
+                {ehColaboradorExterno && (
+                  <span className="rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                    Obrigatório p/ Colaborador Externo (POP 03/04)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 mt-1">
+                Formulário Oficial de Cadastro eSocial para Agentes Colaboradores e Colaboradores Eventuais (com indicação de vínculo com outro órgão público).
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`/api/pedidos/${viagemId}/documentos/esocial?formato=pdf`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 transition"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                <span>eSocial .PDF</span>
+              </a>
+              <a
+                href={`/api/pedidos/${viagemId}/documentos/esocial?formato=docx`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>eSocial .DOCX</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Modelo 6: Termo de Retificação (Quando houver alteração de programação) */}
+          {temRetificacao && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50/70 p-3.5 shadow-2xs">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md bg-amber-800 px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                    Modelo 6 • Termo de Retificação de Viagem / Diárias
+                  </span>
+                  <span className="font-mono text-xs font-bold text-amber-950">
+                    Ref. {seqPrincipalRef}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900 mt-1">
+                  Termo Oficial de Retificação de Datas e Horários (Orientações Gerais SDHP - pág. 7), com quadro comparativo e apuração de complemento ou devolução.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/termo-retificacao?formato=pdf`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-800 px-3 py-2 text-xs font-bold text-white hover:bg-amber-900 transition"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  <span>Termo .PDF</span>
+                </a>
+                <a
+                  href={`/api/pedidos/${viagemId}/documentos/termo-retificacao?formato=docx`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100 transition"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  <span>Termo .DOCX</span>
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Ficha Pronta para Abertura Rápida do Processo no SEI */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-white/90 rounded-xl p-3.5 border border-slate-200/80">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs bg-white/90 rounded-xl p-3.5 border border-slate-200/80">
           <div>
             <span className="text-[10px] font-bold uppercase text-slate-400 block">
               Tipo de Processo no SEI
             </span>
             <span className="font-semibold text-slate-800 block mt-0.5">
-              Pessoal: Diárias / Passagens e Hospedagens
+              Pessoal: diárias e passagens
             </span>
           </div>
 
           <div>
             <span className="text-[10px] font-bold uppercase text-slate-400 block">
-              Unidade de Destino no SEI (Para Tramitação)
+              Nível de Acesso do Formulário
+            </span>
+            <span className="font-semibold text-amber-900 block mt-0.5">
+              Restrito (Info. Pessoal - Art. 31 Lei 12.527/2011)
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[10px] font-bold uppercase text-slate-400 block">
+              Unidade de Destino no SEI
             </span>
             <span className="font-bold text-blue-900 block mt-0.5">
-              Setor de Diárias, Passagens e Hospedagens / PROAD
+              SDHP / PROAD
             </span>
           </div>
 
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                Especificação Sugerida para Capa do SEI
+                Especificação Capa SEI (Padrão SDHP)
               </span>
-              <span className="font-medium text-slate-700 truncate block mt-0.5" title={especificacaoSugerida}>
+              <span
+                className="font-medium text-slate-700 truncate block mt-0.5"
+                title={especificacaoSugerida}
+              >
                 {especificacaoSugerida}
               </span>
             </div>
@@ -165,10 +390,10 @@ export default function PainelKitSeiViagem({
               </h3>
               <p className="text-xs text-slate-700 leading-relaxed">
                 Para que sua solicitação de <strong>{beneficiosLabel}</strong> seja concluída e entre na fila de análise do{" "}
-                <strong>Setor de Diárias, Passagens e Hospedagens</strong>:
+                <strong>Setor de Diárias, Passagens e Hospedagens (SDHP/PROAD)</strong>:
                 <br />
-                <strong>1º)</strong> Crie o processo no SEI da sua unidade e insira o PDF gerado acima (ou o texto copiado) junto aos comprovantes da atividade;{" "}
-                <strong>2º)</strong> Envie o processo no SEI ao <strong>Setor de Diárias, Passagens e Hospedagens</strong>;{" "}
+                <strong>1º)</strong> Crie o processo no SEI da sua unidade e insira o formulário oficial <strong>.PDF</strong> ou <strong>.DOCX</strong> gerado acima (assinado pela Chefia Imediata) junto aos comprovantes da atividade;{" "}
+                <strong>2º)</strong> Envie o processo no SEI ao <strong>SDHP/PROAD</strong>;{" "}
                 <strong>3º)</strong> Informe o número do Processo SEI abaixo e clique em <strong>Concluir Demanda</strong>.
               </p>
             </div>
@@ -215,7 +440,7 @@ export default function PainelKitSeiViagem({
                 <input
                   name="idDocumentoSei"
                   defaultValue={idDocumentoSeiAtual ?? ""}
-                  placeholder="Ex.: 2948102 (ID da Proposta/Requerimento no SEI)"
+                  placeholder="Ex.: 2948102 (ID da Solicitação/PCD no SEI)"
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none"
                 />
               </div>
@@ -230,7 +455,7 @@ export default function PainelKitSeiViagem({
                 className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
               />
               <span>
-                <strong>Declaro que abri o Processo SEI informado acima</strong>, inseri o Requerimento/Proposta gerado pelo sistema e os comprovantes da atividade, e <strong>encaminhei o processo no SEI para o Setor de Diárias, Passagens e Hospedagens</strong>.
+                <strong>Declaro que abri o Processo SEI informado acima</strong>, inseri o Formulário Oficial gerado pelo sistema (assinado pela Chefia Imediata) e os comprovantes da atividade, e <strong>encaminhei o processo no SEI para o Setor de Diárias, Passagens e Hospedagens (SDHP/PROAD)</strong>.
               </span>
             </label>
 
